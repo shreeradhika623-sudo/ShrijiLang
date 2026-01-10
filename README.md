@@ -1,40 +1,16 @@
-# ShrijiLang V1
+ShrijiLang was created by a single independent developer.
 
-ShrijiLang is an experimental Hindi-syntax programming language core
-built in C.
+There was no company, no funding, and no ready-made framework behind this project.
+Only long hours of learning, building, breaking, and rebuilding until a working
+language engine was formed.
 
-It supports:
-- Variables (mavi)
-- Arithmetic expressions
-- Conditions (agar / warna)
-- Loops (jabtak)
-- Nested blocks
-- A simple runtime with state and AI hooks
+This project exists because I believe that computing should also reflect
+Indian thinking — clarity, balance, logic, and responsibility — not only speed
+and abstraction.
 
-This is V1 – the core engine.
-Future versions will add functions, strings, modules and system bindings.
+ShrijiLang is not built to impress.
+It is built to be correct, stable, and meaningful.
 
-## Example
-
-mavi x = 10
-mavi y = 2
-
-agar x > y {
-    x = x + y
-}
-
-x
-
-## Build
-
-Requirements:
-- gcc
-- make
-
-To build:
-
-make
-
-## Run
-
-./shrijilang tests/t1_assign.sri
+The goal is simple:
+Create a language that can grow into systems that think, decide, and serve
+real human needs.
