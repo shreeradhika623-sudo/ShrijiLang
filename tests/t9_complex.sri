@@ -1,0 +1,5 @@
+mavi a = 2
+mavi b = 3
+mavi c = 1
+a = a * b + c
+a

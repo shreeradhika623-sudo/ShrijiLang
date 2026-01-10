@@ -1,0 +1,19 @@
+# compiled binary
+shrijilang
+*.o
+
+# temp & editor
+*.swp
+*~
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# junk
+build/
+bk/
+DUMP*
+*.txt
+*.pdf

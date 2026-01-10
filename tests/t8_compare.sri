@@ -1,0 +1,5 @@
+mavi x = 5
+agar x == 5 {
+    x = 9
+}
+x
