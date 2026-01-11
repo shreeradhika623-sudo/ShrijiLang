@@ -41,7 +41,7 @@ ShrijiLang/ ├── src/ ├── include/ ├── sakhi/ ├── niyu/ �
 
 How to Build
 
-git clone https://github.com/<your-username>/ShrijiLang.git
+git clone https://github.com/shreeradhika623-sudo/ShrijiLang.git
 cd ShrijiLang
 make clean
 make
@@ -121,14 +121,12 @@ Test Suite
 
 
 ---
-
 License
 
-MIT License
-
-
----
+Licensed under GNU AGPLv3.
 
 Author
 
-ShrijiLang is created and maintained by a single independent Indian developer.
+Created and maintained by a single independent Indian developer.
+
+
