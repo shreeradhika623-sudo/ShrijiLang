@@ -1,107 +1,54 @@
+
+
 ShrijiLang
 
-ShrijiLang was created by a single independent developer.
-There was no company, no funding, and no ready-made framework behind this project.
-Only long hours of learning, building, breaking, and rebuilding until a working language engine was formed.
+ShrijiLang is an experimental scripting language written in C with its own lexer, parser, AST, and interpreter.
 
-This project exists because computing should also reflect Indian thinking — clarity, balance, logic, and responsibility — not only speed and abstraction.
-ShrijiLang is not built to impress. It is built to be correct, stable, and meaningful.
-
-The goal is simple: create a language that can grow into systems that think, decide, and serve real human needs.
+This project focuses on building a small, correct, and understandable language engine from scratch.
+It is intended as a learning-driven and research-driven compiler project.
 
 
 ---
 
-What is ShrijiLang?
+Features
 
-ShrijiLang is an experimental Indian programming language written in C.
-
-It includes:
-
-its own lexer, parser, and interpreter
-
-a script-based .sri programming format
-
-control flow (agar, jabtak, blocks)
-
-arithmetic and comparison expressions
-
-a test-driven runtime
-
-
-
----
-
-Project Structure
-
-ShrijiLang/ ├── src/ ├── include/ ├── sakhi/ ├── niyu/ ├── mira/ ├── kavya/ ├── tone/ ├── tests/ ├── Makefile └── shrijilang
-
-
----
-
-How to Build
-
-git clone https://github.com/shreeradhika623-sudo/ShrijiLang.git
-cd ShrijiLang
-make clean
-make
-
-This will compile the full ShrijiLang engine and create the executable shrijilang.
-
-
----
-
-How to Run
-
-./shrijilang tests/t1_assign.sri
-
-You can also run any .sri file:
-
-./shrijilang your_script.sri
-
-
----
-
-Language Basics
+ShrijiLang currently supports:
 
 Variables
 
-mavi x = 5
-mavi y = 10
+Arithmetic and comparison expressions
 
-Printing
+If conditions (agar)
 
-likho x
-likho y
+While loops (jabtak)
 
-Arithmetic
+Block-based execution
 
-likho x + y
-likho x * 2
+Script files (.sri)
 
-If condition
+A test-driven runtime
 
-agar (x > 3) {
-    likho x
-}
 
-While loop
+All components are implemented in native C:
 
-mavi i = 1
-jabtak (i <= 5) {
-    likho i
-    i = i + 1
-}
+Lexer
+
+Parser
+
+Abstract Syntax Tree
+
+Interpreter
+
 
 
 ---
 
-Example Program
+Example
 
-Create a file called hello.sri:
+Create a file hello.sri:
 
-mavi x = 5
-mavi y = 10
+mavi x = 10
+mavi y = 5
 likho x + y
 
 Run it:
@@ -115,18 +62,87 @@ Output:
 
 ---
 
+Project Structure
+
+ShrijiLang/
+├── src/        # Core compiler and runtime
+├── include/    # Headers
+├── sakhi/      # AI interface layer (experimental)
+├── niyu/
+├── mira/
+├── kavya/
+├── tone/
+├── tests/      # Test scripts and validation
+├── Makefile
+└── shrijilang  # Compiler executable
+
+
+---
+
+Build
+
+git clone https://github.com/shreeradhika623-sudo/ShrijiLang.git
+cd ShrijiLang
+make clean
+make
+
+This builds the shrijilang executable.
+
+
+---
+
+Run
+
+Run a test script:
+
+./shrijilang tests/t1_assign.sri
+
+Run any .sri file:
+
+./shrijilang your_script.sri
+
+
+---
+
 Test Suite
 
 ./tests/self_test.sh
 
 
 ---
+
+Project Status
+
+ShrijiLang is in early development.
+
+Planned next milestones:
+
+Type system
+
+Functions
+
+Modules
+
+Error recovery
+
+Standard library
+
+
+
+---
+
+About
+
+ShrijiLang is developed by a single independent developer as a long-term compiler and language design project.
+
+The goal is to build a language that grows from a simple interpreter into a full system capable of structured reasoning and real-world computation.
+
+
+---
+
 License
 
-Licensed under GNU AGPLv3.
-
-Author
-
-Created and maintained by a single independent Indian developer.
+GNU AGPLv3
 
 
+--
