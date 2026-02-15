@@ -1,0 +1,369 @@
+n
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../include/parser.h"
+#include "../include/token.h"
+#include "../include/ast.h"
+#include "../include/error.h"
+
+/*──────────────────────────────────────────────
+ | SHRIJILANG PARSER — FINAL LOCKED VERSION
+ | MODE: SCRIPT (no standalone expressions)
+ | STATUS: STABLE / PROGRAM-AWARE
+ *──────────────────────────────────────────────*/
+
+/*────────── Forward Declarations ──────────*/
+static ASTNode *parse_statement(void);
+static ASTNode *parse_block(void);
+static ASTNode *parse_if(void);
+static ASTNode *parse_assignment(void);
+static ASTNode *parse_update(void);
+static ASTNode *parse_while(void);
+
+
+static ASTNode *parse_expression(void);
+static ASTNode *parse_comparison(void);
+static ASTNode *parse_term(void);
+static ASTNode *parse_factor(void);
+static ASTNode *parse_unary(void);
+static ASTNode *parse_primary(void);
+
+/*────────── Parser State ──────────*/
+static Token current;
+
+/*────────── Helpers ──────────*/
+static void advance(void) {
+    current = scan_token();
+}
+
+static int expect(
+    TokenType type,
+    ShrijiErrorCode code,
+    const char *context,
+    const char *message,
+    const char *hint
+) {
+    if (current.type == type) {
+        advance();
+        return 1;
+    }
+    shriji_error(code, context, message, hint);
+    return 0;
+}
+
+/*──────────────────────────────────────────────
+ | PROGRAM ENTRY
+ *──────────────────────────────────────────────*/
+ASTNode *parse_program(const char *source) {
+
+    if (!source)
+        return NULL;
+
+    init_tokenizer(source);
+    advance();
+
+    ASTNode **stmts = NULL;
+    int count = 0;
+
+    while (current.type != TOKEN_EOF) {
+
+        ASTNode *stmt = parse_statement();
+        if (!stmt)
+            return NULL;
+
+        stmts = realloc(stmts, sizeof(ASTNode *) * (count + 1));
+        stmts[count++] = stmt;
+    }
+
+    if (count == 1) {
+        ASTNode *single = stmts[0];
+        free(stmts);
+        return single;
+    }
+
+    return new_program_node(stmts, count);
+}
+
+/*──────────────────────────────────────────────
+ | STATEMENT
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_statement(void) {
+
+    if (current.type == TOKEN_LEFT_BRACE)
+        return parse_block();
+
+    if (current.type == TOKEN_AGAR)
+        return parse_if();
+
+    if (current.type == TOKEN_JABTAK)
+        return parse_while();
+
+    if (current.type == TOKEN_MAVI)
+    return parse_assignment();
+
+    if (current.type == TOKEN_IDENTIFIER)
+    return parse_update();
+
+    /* ❌ standalone expression NOT allowed in script mode */
+    shriji_error(
+        E_PARSE_02,
+        "statement",
+        "invalid statement",
+        "use assignment or block"
+    );
+    return NULL;
+}
+
+/*──────────────────────────────────────────────
+ | BLOCK { statement* }
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_block(void) {
+
+    expect(
+        TOKEN_LEFT_BRACE,
+        E_PARSE_01,
+        "{",
+        "block opening missing",
+        "{ statement }"
+    );
+
+    ASTNode **stmts = NULL;
+    int count = 0;
+
+    while (current.type != TOKEN_RIGHT_BRACE &&
+           current.type != TOKEN_EOF) {
+
+        ASTNode *stmt = parse_statement();
+        if (!stmt)
+            return NULL;
+
+        stmts = realloc(stmts, sizeof(ASTNode *) * (count + 1));
+        stmts[count++] = stmt;
+    }
+
+    expect(
+        TOKEN_RIGHT_BRACE,
+        E_PARSE_02,
+        "}",
+        "block closing missing",
+        "{ statement }"
+    );
+
+    return new_block_node(stmts, count);
+}
+
+/*──────────────────────────────────────────────
+ | IF / AGAR
+ | agar expression block (warna block)?
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_if(void) {
+
+    advance(); /* consume agar */
+
+    ASTNode *condition = parse_expression();
+    if (!condition)
+        return NULL;
+
+    /* IMPORTANT:
+       parse_block() itself consumes '{' */
+    ASTNode *then_block = parse_block();
+    ASTNode *node = new_if_node(condition, then_block);
+
+    if (current.type == TOKEN_WARNA) {
+        advance();
+        node->else_block = parse_block();
+    }
+
+    return node;
+}
+
+/*──────────────────────────────────────────────
+ | ASSIGNMENT
+ | mavi identifier = expression
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_assignment(void) {
+
+    advance(); /* consume mavi */
+
+    if (current.type != TOKEN_IDENTIFIER) {
+        shriji_error(
+            E_ASSIGN_01,
+            "mavi",
+            "variable name missing",
+            "mavi x = 10"
+        );
+        return NULL;
+    }
+
+    char name[128];
+    strncpy(name, current.start, current.length);
+    name[current.length] = '\0';
+    advance();
+
+    expect(
+        TOKEN_EQUAL,
+        E_ASSIGN_01,
+        "=",
+        "expected '=' after variable",
+        "mavi x = 10"
+    );
+
+    ASTNode *value = parse_expression();
+    return new_assignment_node(name, value);
+}
+
+/*──────────────────────────────────────────────
+ | EXPRESSION
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_expression(void) {
+
+    ASTNode *node = parse_comparison();
+
+    while (current.type == TOKEN_PLUS ||
+           current.type == TOKEN_MINUS) {
+
+        char op = (current.type == TOKEN_PLUS) ? '+' : '-';
+        advance();
+        node = new_binary_node(op, node, parse_comparison());
+    }
+
+    return node;
+}
+
+static ASTNode *parse_comparison(void) {
+
+    ASTNode *node = parse_term();
+
+    while (current.type == TOKEN_GT ||
+           current.type == TOKEN_LT ||
+           current.type == TOKEN_EQEQ ||
+           current.type == TOKEN_NEQ) {
+
+        char op =
+            (current.type == TOKEN_GT)   ? '>' :
+            (current.type == TOKEN_LT)   ? '<' :
+            (current.type == TOKEN_EQEQ) ? '=' : '!';
+
+        advance();
+        node = new_binary_node(op, node, parse_term());
+    }
+
+    return node;
+}
+
+static ASTNode *parse_term(void) {
+
+    ASTNode *node = parse_factor();
+
+    while (current.type == TOKEN_STAR ||
+           current.type == TOKEN_SLASH) {
+
+        char op = (current.type == TOKEN_STAR) ? '*' : '/';
+        advance();
+        node = new_binary_node(op, node, parse_factor());
+    }
+
+    return node;
+}
+
+static ASTNode *parse_factor(void) {
+    return parse_unary();
+}
+
+static ASTNode *parse_unary(void) {
+
+    if (current.type == TOKEN_NAHI) {
+        advance();
+        return new_not_node(parse_unary());
+    }
+
+    return parse_primary();
+}
+
+static ASTNode *parse_primary(void) {
+
+    if (current.type == TOKEN_NUMBER) {
+        int v = atoi(current.start);
+        advance();
+        return new_number_node(v);
+    }
+
+    if (current.type == TOKEN_TRUE) {
+        advance();
+        return new_number_node(1);
+    }
+
+    if (current.type == TOKEN_FALSE) {
+        advance();
+        return new_number_node(0);
+    }
+
+    if (current.type == TOKEN_IDENTIFIER) {
+        char name[128];
+        strncpy(name, current.start, current.length);
+        name[current.length] = '\0';
+        advance();
+        return new_identifier_node(name);
+    }
+
+    if (current.type == TOKEN_LEFT_PAREN) {
+        advance();
+        ASTNode *node = parse_expression();
+        expect(
+            TOKEN_RIGHT_PAREN,
+            E_PARSE_02,
+            ")",
+            "missing ')'",
+            "(expression)"
+        );
+        return node;
+    }
+
+    shriji_error(
+        E_PARSE_02,
+        "expression",
+        "unexpected token",
+        "check syntax"
+    );
+    return NULL;
+}
+
+static ASTNode *parse_update(void) {
+
+    char name[128];
+    strncpy(name, current.start, current.length);
+    name[current.length] = '\0';
+    advance();
+
+    expect(
+        TOKEN_EQUAL,
+        E_ASSIGN_01,
+        "=",
+        "expected '=' in assignment",
+        "x = 10"
+    );
+
+    ASTNode *value = parse_expression();
+
+    ASTNode *node = new_assignment_node(name, value);
+    node->type = AST_UPDATE;
+    return node;
+}
+/*──────────────────────────────────────────────
+ | WHILE / JABTAK
+ | jabtak expression block
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_while(void) {
+
+    advance(); /* consume jabtak */
+
+    ASTNode *condition = parse_expression();
+    if (!condition)
+        return NULL;
+
+    ASTNode *body = parse_block();
+
+    return new_while_node(condition, body);
+}

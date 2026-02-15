@@ -1,0 +1,4 @@
+bolo "=== PADHO MISSING FILE TEST ==="
+mavi x = padho("no_such_file.txt")
+bolo x
+bolo "=== END ==="

@@ -1,0 +1,55 @@
+bolo "VALUE TYPE FINAL PROBE START"
+
+# ─────────────────────────────
+# 1️⃣ DECLARATION RULE (MUST)
+# ─────────────────────────────
+mavi a = 10
+mavi b = 20
+mavi s = "abc"
+
+bolo a
+bolo b
+bolo s
+
+# ─────────────────────────────
+# 2️⃣ VALID ARITHMETIC (OK)
+# ─────────────────────────────
+bolo a + b
+bolo b - a
+bolo a * b
+bolo b / a
+bolo b % a
+
+# ─────────────────────────────
+# 3️⃣ VALID COMPARISON (OK)
+# ─────────────────────────────
+bolo a < b
+bolo a > b
+bolo a == b
+bolo a != b
+bolo b >= a
+bolo a <= b
+
+# ─────────────────────────────
+# 4️⃣ STRING COMPARISON (OK)
+# ─────────────────────────────
+mavi s1 = "abc"
+mavi s2 = "abc"
+mavi s3 = "xyz"
+
+bolo s1 == s2
+bolo s1 != s3
+bolo s1 < s3
+bolo s3 > s2
+
+# ─────────────────────────────
+# 5️⃣ INVALID: NUMBER + STRING (HARD STOP)
+# ─────────────────────────────
+mavi x = 10
+mavi y = "hello"
+bolo x + y
+
+# ❌ execution must STOP here
+bolo "SHOULD NOT REACH HERE"
+
+bolo "VALUE TYPE FINAL PROBE END"

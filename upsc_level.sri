@@ -1,0 +1,98 @@
+mavi a = 10
+mavi b = 20
+mavi c = 30
+mavi d = 40
+mavi e = 5
+
+mavi sum1 = a + b
+mavi sum2 = c + d
+mavi sum3 = sum1 + sum2
+
+mavi prod1 = a * e
+mavi prod2 = b * e
+mavi prod3 = c * e
+
+mavi div1 = d / e
+mavi div2 = c / e
+
+mavi cmp1 = a < b
+mavi cmp2 = d > c
+mavi cmp3 = a == e
+mavi cmp4 = b != c
+
+mavi logic1 = nahi cmp3
+mavi logic2 = nahi (a > d)
+
+agar a < b {
+    mavi lvl1 = a + b
+
+    agar c > b {
+        mavi lvl2 = c + d
+
+        agar d > a {
+            mavi lvl3 = (a + b + c + d) * e
+        } warna {
+            mavi lvl3 = 0
+        }
+
+    } warna {
+        mavi lvl2 = 0
+        mavi lvl3 = 0
+    }
+
+} warna {
+    mavi lvl1 = 0
+    mavi lvl2 = 0
+    mavi lvl3 = 0
+}
+
+agar (a + b) < (c + d) {
+    mavi geo1 = (a * b) + (c * d)
+} warna {
+    mavi geo1 = 0
+}
+
+agar nahi (a == b) {
+    mavi logicDeep1 = 1
+
+    agar nahi (b == c) {
+        mavi logicDeep2 = 1
+
+        agar nahi (c == d) {
+            mavi logicDeep3 = 1
+        } warna {
+            mavi logicDeep3 = 0
+        }
+
+    } warna {
+        mavi logicDeep2 = 0
+        mavi logicDeep3 = 0
+    }
+
+} warna {
+    mavi logicDeep1 = 0
+    mavi logicDeep2 = 0
+    mavi logicDeep3 = 0
+}
+
+mavi mega1 = (a + b + c + d + e)
+mavi mega2 = mega1 * mega1
+mavi mega3 = (mega2 / e) + (a * b)
+
+agar mega3 > 1000 {
+    mavi final1 = mega3
+} warna {
+    mavi final1 = 0
+}
+
+agar final1 > 500 {
+    mavi decision = 1
+} warna {
+    mavi decision = 0
+}
+
+mavi sanity1 = a
+mavi sanity2 = b
+mavi sanity3 = c
+mavi sanity4 = d
+mavi sanity5 = e

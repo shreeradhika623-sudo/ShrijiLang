@@ -1,0 +1,24 @@
+mavi start = 1
+mavi end = 10
+mavi sum = 0
+
+mavi a = 5 + 5
+a
+
+a = a + 1
+a
+
+jabtak start < end {
+    sum = sum + start
+    start = start + 1
+}
+
+sum
+
+agar sum > 30 {
+    100
+} warna {
+    0
+}
+
+(10 + 20) * 3

@@ -1,0 +1,9 @@
+bolo "=== return test start ==="
+
+mavi x = 10
+bolo x
+
+wapas x + 5
+
+bolo "=== should NOT print this ==="
+bolo 999

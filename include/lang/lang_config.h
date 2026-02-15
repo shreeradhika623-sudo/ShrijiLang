@@ -1,0 +1,6 @@
+#ifndef SHRIJI_LANG_CONFIG_H
+#define SHRIJI_LANG_CONFIG_H
+
+#define SHRIJI_ENABLE_MASTER_TOKENS
+
+#endif

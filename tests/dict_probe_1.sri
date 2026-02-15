@@ -1,0 +1,8 @@
+bolo "DICT PROBE 1 START"
+
+mavi d = {"a": 10, "b": 20}
+
+bolo d["a"]
+bolo d["b"]
+
+bolo "DICT PROBE 1 END"

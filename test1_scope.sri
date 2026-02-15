@@ -1,0 +1,13 @@
+bolo "TEST-1 START"
+
+mavi x = 5
+bolo x
+
+{
+    mavi x = 99
+    bolo x
+}
+
+bolo x
+
+bolo "TEST-1 END"

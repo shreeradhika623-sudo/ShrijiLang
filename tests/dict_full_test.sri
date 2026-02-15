@@ -1,0 +1,6 @@
+mavi d = {"a": 1}
+bolo d["a"]
+d["a"] = 5
+bolo d["a"]
+d["c"] = 99
+bolo d["c"]

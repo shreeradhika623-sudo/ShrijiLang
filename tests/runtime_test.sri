@@ -1,0 +1,9 @@
+# ShrijiLang runtime test
+
+mavi x = 10
+x = x + 2
+mavi y = 5
+mavi z = (x * y) + 1
+
+# expected z = (12*5)+1 = 61
+z

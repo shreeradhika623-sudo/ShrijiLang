@@ -1,0 +1,8 @@
+bolo "Radhe Radhe"
+
+mavi i = 0
+jabtak i < 5 {
+    i = i + 1
+    bolo i
+}
+bolo (i + 100)

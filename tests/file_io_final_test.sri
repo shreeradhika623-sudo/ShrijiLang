@@ -1,0 +1,14 @@
+bolo "FILE I/O FINAL TEST START"
+
+mavi temp1
+mavi temp2
+mavi temp3
+
+temp1 = likho("test.txt", "Radhe Radhe\n")
+temp2 = jodo("test.txt", "ShrijiLang bol rahi hai\n")
+
+mavi data
+data = padho("test.txt")
+bolo data
+
+bolo "FILE I/O FINAL TEST END"

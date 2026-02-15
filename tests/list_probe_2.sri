@@ -1,0 +1,6 @@
+bolo "LIST PROBE 2 START"
+
+mavi a = [10, 20]
+bolo a["x"]   # ❌ index must be number
+
+bolo "SHOULD NOT REACH"

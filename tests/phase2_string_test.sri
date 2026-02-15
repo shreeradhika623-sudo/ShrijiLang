@@ -1,0 +1,17 @@
+bolo "=== PHASE-2 STRING TEST START ==="
+
+mavi name = "Maya"
+mavi msg = "Hello "
+bolo msg + name
+
+mavi x = 10
+bolo "x = " + x
+
+mavi s = "10"
+agar s == "10" {
+    bolo "string compare OK"
+} warna {
+    bolo "string compare FAIL"
+}
+
+bolo "=== PHASE-2 STRING TEST END ==="

@@ -1,0 +1,35 @@
+bolo "=== Shriji Mega Test Start ==="
+
+mavi x = 0
+mavi sum = 0
+mavi r = 0
+
+jabtak x < 20 {
+
+    x = x + 1
+
+    r = x % 5
+    agar r == 0 {
+        bolo "skip"
+        chalu
+    }
+
+    agar x == 17 {
+        bolo "stop at 17"
+        rukja
+    }
+
+    sum = sum + x
+    bolo x
+}
+
+bolo "loop finished"
+bolo sum
+
+agar sum > 50 {
+    bolo "sum is big"
+} warna {
+    bolo "sum is small"
+}
+
+wapas sum

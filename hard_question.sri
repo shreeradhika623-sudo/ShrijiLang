@@ -1,0 +1,34 @@
+bolo "=== HARD QUESTION START ==="
+
+kaam isEven(x) {
+    agar (x % 2 == 0) {
+        wapas 1
+    }
+    wapas 0
+}
+
+kaam square(x) {
+    wapas x * x
+}
+
+mavi i = 1
+mavi sum = 0
+
+jabtak (i <= 20) {
+
+    agar (isEven(i)) {
+        sum = sum + square(i)
+    }
+
+    i = i + 1
+}
+
+bolo sum
+
+agar (sum > 2000) {
+    bolo "Result is BIG"
+} warna {
+    bolo "Result is SMALL"
+}
+
+bolo "=== HARD QUESTION END ==="

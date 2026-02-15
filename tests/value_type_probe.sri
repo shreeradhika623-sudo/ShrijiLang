@@ -1,0 +1,14 @@
+bolo "VALUE TYPE PROBE START"
+
+a = 10
+b = "abc"
+
+bolo a
+bolo b
+
+c = a + b
+bolo c
+
+padho(a)
+
+bolo "VALUE TYPE PROBE END"

@@ -1,0 +1,3 @@
+bolo "hello\nworld"
+bolo "quote: \"ok\""
+bolo "slash: \\"

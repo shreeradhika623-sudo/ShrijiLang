@@ -1,0 +1,83 @@
+############################################
+# SHRIJILANG — FULL SYSTEM TEST FILE
+# Purpose: Stress test of parser + interpreter
+############################################
+
+# -------------------------------
+# BASIC ASSIGNMENTS
+# -------------------------------
+mavi a = 10
+mavi b = 20
+mavi c = 5
+
+# -------------------------------
+# ARITHMETIC OPERATIONS
+# -------------------------------
+mavi sum = a + b
+mavi diff = b - a
+mavi prod = a * c
+mavi div = b / c
+
+# -------------------------------
+# COMPARISONS (stored as values)
+# -------------------------------
+mavi isSmall = a < b
+mavi isBig = b > a
+mavi isEqual = a == c
+mavi isNotEqual = a != c
+
+# -------------------------------
+# LOGICAL (nahi)
+# -------------------------------
+mavi flag = nahi false
+mavi flag2 = nahi isEqual
+
+# -------------------------------
+# SIMPLE IF
+# -------------------------------
+agar a < b {
+    mavi inside1 = a + b
+}
+
+# -------------------------------
+# IF–ELSE
+# -------------------------------
+agar a > b {
+    mavi result1 = 999
+} warna {
+    mavi result1 = 111
+}
+
+# -------------------------------
+# NESTED IF
+# -------------------------------
+agar a < b {
+    agar b > c {
+        mavi deep = a * b
+    } warna {
+        mavi deep = 0
+    }
+}
+
+# -------------------------------
+# COMPLEX EXPRESSIONS
+# -------------------------------
+mavi complex1 = (a + b) * c
+mavi complex2 = (b - a) + (c * 2)
+mavi complex3 = (a + b + c) * (a - c)
+
+# -------------------------------
+# BOOLEAN EXPRESSION IN IF
+# -------------------------------
+agar nahi (a == b) {
+    mavi logicTest = 1
+} warna {
+    mavi logicTest = 0
+}
+
+# -------------------------------
+# FINAL STATE CHECK
+# -------------------------------
+mavi finalA = a
+mavi finalB = b
+mavi finalC = c

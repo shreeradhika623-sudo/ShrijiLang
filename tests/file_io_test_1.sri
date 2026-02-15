@@ -1,0 +1,11 @@
+bolo "FILE I/O TEST 1 START"
+
+mavi result
+result = likho("test1.txt", "Om gan ganpataye namah\n")
+
+mavi data
+data = padho("test1.txt")
+
+bolo data
+
+bolo "FILE I/O TEST 1 END"

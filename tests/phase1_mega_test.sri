@@ -1,0 +1,69 @@
+bolo "=== PHASE-1 MEGA TEST START ==="
+
+# --------------------------
+# 1) Variables + Arithmetic
+# --------------------------
+mavi x = 2 + 3
+bolo "x should be 5"
+bolo x
+
+# --------------------------
+# 2) IF / ELSE
+# --------------------------
+agar x > 3 {
+    bolo "if block OK (x>3)"
+} warna {
+    bolo "else block FAIL"
+}
+
+# --------------------------
+# 3) WHILE + UPDATE
+# --------------------------
+mavi i = 0
+mavi sum = 0
+
+jabtak i < 10 {
+    i = i + 1
+
+    agar i == 3 {
+        bolo "continue test (skip 3)"
+        chalu
+    }
+
+    agar i == 7 {
+        bolo "break test (stop at 7)"
+        rukja
+    }
+
+    sum = sum + i
+}
+
+bolo "sum after loop (should be 1+2+4+5+6 = 18)"
+bolo sum
+
+# --------------------------
+# 4) Functions + Return
+# --------------------------
+kaam add(a, b) {
+    wapas a + b
+}
+
+bolo "add(10,20) should be 30"
+bolo add(10, 20)
+
+kaam mul(a, b) {
+    wapas a * b
+}
+
+bolo "mul(6,7) should be 42"
+bolo mul(6, 7)
+
+kaam combo(a, b) {
+    mavi t = add(a, b)
+    wapas t * 2
+}
+
+bolo "combo(5,5) => (5+5)*2 should be 20"
+bolo combo(5, 5)
+
+bolo "=== PHASE-1 MEGA TEST END ==="

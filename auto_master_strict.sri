@@ -1,0 +1,19 @@
+{mavi sum = 0
+mavi i = 1
+agar 1 {sum = 10 + 20 * 3
+sum = sum - 5}
+agar 1 {i = 1
+agar i < 100000 {sum = sum + i
+i = i + 1
+agar 1 {}}}
+agar 1 {i = 1
+agar i < 300000 {sum = (sum * 17 + i * 23 - 7) / 3
+i = i + 1
+agar 1 {}}}
+mavi a = 1
+mavi b = 2
+mavi c = 3
+agar 1 {agar 1 {agar 1 {agar 1 {agar 1 {a = a + b * c}}}}}
+mavi k = 0
+agar 1 {k = k + 1
+agar k < 200000 {agar 1 {}}}}

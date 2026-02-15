@@ -1,0 +1,7 @@
+mavi a = 1
+mavi b = 2
+mavi c = 3
+
+mavi a = (a + b + c) * 10
+mavi b = (a - b) * (c + 5)
+mavi c = (a * b + c) / 2

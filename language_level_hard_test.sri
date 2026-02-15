@@ -1,0 +1,58 @@
+bolo "=== SHRIJILANG LANGUAGE LEVEL HARD TEST START ==="
+bolo "Start Time: (skipped)"
+
+mavi a = 10
+mavi b = 5
+mavi c = a * b + 20
+bolo c
+
+agar (c > 50) {
+    bolo "c is greater than 50"
+} warna {
+    bolo "c is not greater"
+}
+
+mavi i = 0
+jabtak (i < 10) {
+    i = i + 1
+    agar (i == 3) {
+        chalu
+    }
+    agar (i == 8) {
+        rukja
+    }
+    bolo i
+}
+
+mavi nums = [1, 2, 3, 4, 5]
+bolo nums
+bolo nums[2]
+
+mavi person = {
+    "name": "Shriji",
+    "age": 29
+}
+
+bolo person
+bolo person["name"]
+person["age"] = 30
+bolo person["age"]
+
+kaam add(x, y) {
+    wapas x + y
+}
+
+mavi sum = add(40, 2)
+bolo sum
+
+mavi t1
+mavi t2
+mavi filedata
+
+t1 = likho("test_output.txt", "Hello ShrijiLang\n")
+t2 = jodo("test_output.txt", "Language Test OK\n")
+filedata = padho("test_output.txt")
+bolo filedata
+
+bolo "End Time: (skipped)"
+bolo "=== SHRIJILANG LANGUAGE LEVEL HARD TEST END ==="

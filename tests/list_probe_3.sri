@@ -1,0 +1,6 @@
+bolo "LIST PROBE 3 START"
+
+mavi a = [10]
+bolo a[5]     # ❌ out of range
+
+bolo "SHOULD NOT REACH"

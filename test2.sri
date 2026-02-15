@@ -1,0 +1,8 @@
+mavi a = 10
+mavi b = 20
+
+agar a < b {
+    mavi c = a + b
+}
+
+mavi d = a * b

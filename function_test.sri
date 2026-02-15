@@ -1,0 +1,11 @@
+bolo "=== function test ==="
+
+kaam add(a, b) {
+    wapas a + b
+}
+
+mavi x = add(10, 20)
+bolo x
+
+bolo "=== end ==="
+wapas 0

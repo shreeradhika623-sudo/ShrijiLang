@@ -1,0 +1,11 @@
+mavi x = 1
+mavi y = 2
+mavi z = 3
+
+mavi x = (x + y) * (z + 5) - (x * y)
+mavi y = (y + z) * (x + 7) - (y * z)
+mavi z = (x + y + z) * (x - y + z)
+
+mavi x = (x * 3 + y * 2 - z) * (x + 1)
+mavi y = (y * 5 - x * 2 + z) * (y + 2)
+mavi z = (z * 7 + x - y) * (z + 3)

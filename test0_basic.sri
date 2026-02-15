@@ -1,0 +1,9 @@
+bolo "TEST-0 START"
+
+mavi x = 10
+bolo x
+
+x = 20
+bolo x
+
+bolo "TEST-0 END"

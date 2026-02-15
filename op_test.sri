@@ -1,0 +1,5 @@
+mavi x = 5
+mavi y = 5
+
+agar x >= y { bolo "GTE OK" } warna { bolo "GTE FAIL" }
+agar x <= y { bolo "LTE OK" } warna { bolo "LTE FAIL" }

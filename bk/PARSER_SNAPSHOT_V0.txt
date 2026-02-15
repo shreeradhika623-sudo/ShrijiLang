@@ -1,0 +1,4 @@
+ASSIGN(x)
+  BINARY(+)
+    NUMBER(10)
+    NUMBER(20)

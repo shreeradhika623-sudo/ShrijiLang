@@ -1,0 +1,6 @@
+bolo "=== DICT TEST START ==="
+
+mavi d = {"a": 10, "b": 20}
+bolo d
+
+bolo "=== DICT TEST END ==="

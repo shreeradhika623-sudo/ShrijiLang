@@ -1,0 +1,20 @@
+bolo "FILE I/O TEST 2 START"
+
+mavi r1
+r1 = likho("test2.txt", "Om gan ganpataye namah\n")
+
+mavi r2
+r2 = jodo("test2.txt", "Radhe Radhe\n")
+
+mavi r3
+r3 = jodo("test2.txt", "Shiva Shiva\n")
+
+mavi r4
+r4 = jodo("test2.txt", "Jay baba\n")
+
+mavi data
+data = padho("test2.txt")
+
+bolo data
+
+bolo "FILE I/O TEST 2 END"

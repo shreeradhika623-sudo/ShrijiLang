@@ -1,0 +1,7 @@
+mavi a = [1, 2]
+a[5] = 10        # out of range
+bolo a[0]
+
+mavi d = {"a": 1}
+d[10] = 5        # wrong key type
+bolo d["a"]

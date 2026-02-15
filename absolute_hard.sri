@@ -1,0 +1,72 @@
+bolo "=== ABSOLUTE HARD START ==="
+
+mavi i = 1
+mavi mode = 0
+mavi energy = 60
+mavi errors = 0
+mavi safe = 1
+
+jabtak (i <= 120) {
+
+    agar (i % 8 == 0) {
+        mode = 1
+        energy = energy + 12
+    } warna {
+        agar (i % 10 == 0) {
+            mode = 2
+            energy = energy - 20
+        }
+    }
+
+    agar (energy < 15) {
+        safe = 0
+        errors = errors + 1
+    } warna {
+        safe = 1
+    }
+
+    agar (energy > 100) {
+        energy = 100
+    }
+
+    agar (energy < 0) {
+        energy = 0
+    }
+
+    agar (safe == 0) {
+        bolo "SAFE-MODE"
+    }
+
+    agar (safe == 1) {
+        agar (mode == 1) {
+            bolo i
+        }
+        agar (mode == 2) {
+            bolo i * i
+        }
+    }
+
+    agar (errors == 7) {
+        rukja
+    }
+
+    i = i + 1
+}
+
+bolo "FINAL ENERGY:"
+bolo energy
+
+bolo "TOTAL ERRORS:"
+bolo errors
+
+agar (errors == 0) {
+    bolo "IMMUTABLE"
+} warna {
+    agar (errors <= 3) {
+        bolo "ROBUST"
+    } warna {
+        bolo "FRAGILE"
+    }
+}
+
+bolo "=== ABSOLUTE HARD END ==="

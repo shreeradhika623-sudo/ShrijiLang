@@ -1,0 +1,63 @@
+//──────────────────────────────────────────────
+// ShrijiLang Universe Test V2
+// Tests: bolo, mavi, update, if/warna, jabtak,
+//        rukja (break), chalu (continue)
+//──────────────────────────────────────────────
+
+bolo "Radhe Radhe 🙏 Universe Test V2 start"
+
+//----------------------------------------------
+// 1) Variables + assignment + update
+//----------------------------------------------
+mavi a = 10
+mavi b = 5
+
+bolo a
+bolo b
+
+a = a + 2
+b = b * 3
+
+bolo a
+bolo b
+
+//----------------------------------------------
+// 2) IF / WARNA
+//----------------------------------------------
+agar a > b {
+    bolo "a bada hai"
+} warna {
+    bolo "b bada hai"
+}
+
+//----------------------------------------------
+// 3) WHILE + CONTINUE + BREAK
+//----------------------------------------------
+mavi i = 0
+mavi sum = 0
+
+jabtak i < 20 {
+
+    i = i + 1
+
+    // skip 5
+    agar i == 5 {
+        chalu
+    }
+
+    sum = sum + i
+
+    // stop at 10
+    agar i == 10 {
+        rukja
+    }
+}
+
+bolo "Loop finished"
+bolo i
+bolo sum
+
+//----------------------------------------------
+// 4) Final expression result
+//----------------------------------------------
+999

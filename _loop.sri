@@ -1,0 +1,5 @@
+mavi x = 0
+jabtak x < 3 {
+  sakhi x
+  x = x + 1
+}

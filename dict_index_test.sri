@@ -1,0 +1,7 @@
+bolo "=== DICT INDEX TEST ==="
+
+mavi d = {"a": 10, "b": 20}
+bolo d["a"]
+bolo d["b"]
+
+bolo "=== END ==="

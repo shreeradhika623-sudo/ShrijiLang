@@ -1,0 +1,12 @@
+bolo "Testing runtime errors"
+
+mavi x = 10
+mavi y = 0
+
+bolo x / y      // division by zero
+
+bolo "After error"
+
+rukja            // break outside loop
+
+mavi z = a       // undeclared variable

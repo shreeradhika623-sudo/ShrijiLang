@@ -1,0 +1,1081 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../include/parser.h"
+#include "../include/token.h"
+#include "../include/ast.h"
+#include "../include/error.h"
+
+#include "lang/grammar.h"
+
+#ifdef SHRIJI_ENABLE_MASTER_TOKENS
+#include "lang/token_master.h"
+#endif
+
+/*──────────────────────────────────────────────
+ | SHRIJILANG PARSER — V1 STABLE (FULL)
+ | Supports:
+ |   - mavi (declaration)
+ |   - update (x = expr)
+ |   - if/else (agar/warna)
+ |   - while (jabtak)
+ |   - break/continue (rukja/chalu)
+ |   - return (wapas)
+ |   - functions (kaam)
+ |   - function call: add(10, 20)
+ |   - newline aware
+ |   - list literal: [1, 2, 3]
+ |   - indexing: a[0]
+ *──────────────────────────────────────────────*/
+
+static ASTNode *parse_statement(void);
+static ASTNode *parse_block(void);
+static ASTNode *parse_if(void);
+static ASTNode *parse_while(void);
+static ASTNode *parse_return(void);
+static ASTNode *parse_function(void);
+
+static ASTNode *parse_assignment(void);
+static ASTNode *parse_update_or_identifier(void);
+
+/* expression chain */
+static ASTNode *parse_comparison(void);
+static ASTNode *parse_expression(void);
+static ASTNode *parse_term(void);
+static ASTNode *parse_unary(void);
+static ASTNode *parse_primary(void);
+
+/* list support */
+static ASTNode *parse_list_literal(void);
+static ASTNode *parse_dict_literal(void);
+static ASTNode *parse_postfix(ASTNode *base);
+
+static ASTNode *parse_import(void);
+
+static Token current;
+
+/*──────────────────────────────────────────────
+ | HELPERS
+ *──────────────────────────────────────────────*/
+static void advance(void)
+{
+    current = scan_token();
+}
+
+static int expect(TokenType t, ShrijiErrorCode c,
+                  const char *ctx, const char *msg, const char *hint)
+{
+    if (current.type == t) {
+        advance();
+        return 1;
+    }
+
+    shriji_error_at(current, c, ctx, msg, hint);
+    return 0;
+}
+
+static void skip_separators(void)
+{
+    while (current.type == TOKEN_NEWLINE) {
+        advance();
+    }
+}
+
+static void unescape_into(char *out, int outcap, const char *in, int inlen)
+{
+    int oi = 0;
+
+    for (int i = 0; i < inlen && oi < outcap - 1; i++) {
+        char c = in[i];
+
+        if (c == '\\' && i + 1 < inlen) {
+            char n = in[i + 1];
+            i++;
+
+            switch (n) {
+                case 'n':  out[oi++] = '\n'; break;
+                case 't':  out[oi++] = '\t'; break;
+                case 'r':  out[oi++] = '\r'; break;
+                case '"':  out[oi++] = '"';  break;
+                case '\\': out[oi++] = '\\'; break;
+                default:
+                    out[oi++] = n;
+                    break;
+            }
+            continue;
+        }
+
+        out[oi++] = c;
+    }
+
+    out[oi] = 0;
+}
+/*──────────────────────────────────────────────
+ | PROGRAM
+ *──────────────────────────────────────────────*/
+
+ASTNode *parse_program(const char *source)
+{
+#ifdef SHRIJI_ENABLE_MASTER_TOKENS
+    shriji_register_grammar_core();   // 👈 यही FINAL जगह है
+#endif
+
+    init_tokenizer(source);
+    advance();
+
+    ASTNode **stmts = NULL;
+    int count = 0;
+
+    while (current.type != TOKEN_EOF) {
+
+        skip_separators();
+        if (current.type == TOKEN_EOF)
+            break;
+
+        ASTNode *s = parse_statement();
+        if (!s) {
+            free(stmts);
+            return NULL;
+        }
+
+        ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
+        if (!tmp) {
+            free(stmts);
+            return NULL;
+        }
+        stmts = tmp;
+
+        stmts[count++] = s;
+
+        skip_separators();
+    }
+
+    return new_program_node(stmts, count);
+}
+
+
+/*──────────────────────────────────────────────
+  | STATEMENT
+  *──────────────────────────────────────────────*/
+static ASTNode *parse_statement(void)
+{
+    ASTNode *node = NULL;
+
+    skip_separators();
+
+    if (current.type == TOKEN_LEFT_BRACE) return parse_block();
+    if (current.type == TOKEN_AGAR)       return parse_if();
+    if (current.type == TOKEN_JABTAK)     return parse_while();
+    if (current.type == TOKEN_WAPAS)      return parse_return();
+    if (current.type == TOKEN_KAAM)       return parse_function();
+    if (current.type == TOKEN_MAVI)       return parse_assignment();
+    if (current.type == TOKEN_IMPORT)     return parse_import();
+
+    /* samay */
+    if (current.type == TOKEN_SAMAY) {
+        advance();
+        skip_separators();
+        return new_command_node("samay", NULL);
+    }
+
+    /* rukja */
+    if (current.type == TOKEN_RUKJA) {
+        advance();
+        skip_separators();
+        return new_break_node();
+    }
+
+    /* chalu */
+    if (current.type == TOKEN_CHALU) {
+        advance();
+        skip_separators();
+        return new_continue_node();
+    }
+
+/* bolo <expr> */
+if (current.type == TOKEN_BOLO) {
+    advance();
+    skip_separators();
+
+    node = parse_comparison();
+    if (!node) return NULL;
+
+    skip_separators();
+    return new_command_node("bolo", node);
+}
+
+
+    /* AI commands */
+    if (current.type == TOKEN_SAKHI ||
+        current.type == TOKEN_NIYU  ||
+        current.type == TOKEN_MIRA  ||
+        current.type == TOKEN_KAVYA ||
+        current.type == TOKEN_SHIRI) {
+
+        const char *cmd = current.start;
+        advance();
+        skip_separators();
+
+        node = parse_expression();
+        if (!node) return NULL;
+
+        skip_separators();
+        return new_command_node(cmd, node);
+    }
+
+    /* identifier: update / call */
+    if (current.type == TOKEN_IDENTIFIER) {
+        node = parse_update_or_identifier();
+        if (!node) return NULL;
+        skip_separators();
+        return node;
+    }
+
+
+/* raw expression */
+    if (current.type == TOKEN_NUMBER ||
+        current.type == TOKEN_STRING ||
+        current.type == TOKEN_TRUE   ||
+        current.type == TOKEN_FALSE  ||
+        current.type == TOKEN_LEFT_PAREN ||
+        current.type == TOKEN_NAHI   ||
+        current.type == TOKEN_LEFT_BRACKET) {
+
+        node = parse_expression();
+        if (!node) return NULL;
+        return node;
+    }
+
+    /* '=' can never start a statement */
+    if (current.type == TOKEN_EQUAL) {
+        shriji_error_at(
+            current,
+            E_PARSE_02,
+            "statement",
+            "Assignment yahin se start nahi ho sakta. Variable aur '=' ek hi line me likho.",
+            "example: temp1 = 10"
+        );
+        return NULL;
+    }
+
+    /* 🚨 FINAL FALLBACK — ONLY IF NO ERROR ALREADY REPORTED */
+    if (!error_reported) {
+        shriji_error_at(
+            current,
+            E_PARSE_02,
+            "statement",
+            "Ye line mujhe clear nahi lagi. Simple format me likhne se shayad clarity aa jaaye.",
+            NULL
+        );
+    }
+
+    return NULL;
+}
+
+/*──────────────────────────────────────────────
+ | BLOCK { ... }
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_block(void)
+{
+    if (!expect(TOKEN_LEFT_BRACE, E_PARSE_01, "{", "missing {", "{ stmt }"))
+        return NULL;
+
+    ASTNode **stmts = NULL;
+    int count = 0;
+
+    while (current.type != TOKEN_RIGHT_BRACE &&
+           current.type != TOKEN_EOF) {
+
+        skip_separators();
+
+        if (current.type == TOKEN_RIGHT_BRACE)
+            break;
+
+        ASTNode *s = parse_statement();
+        if (!s) {
+            free(stmts);
+            return NULL;
+        }
+
+        ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
+        if (!tmp) {
+            free(stmts);
+            return NULL;
+        }
+        stmts = tmp;
+
+        stmts[count++] = s;
+
+        skip_separators();
+    }
+
+    if (!expect(TOKEN_RIGHT_BRACE, E_PARSE_02, "}", "missing }", "{ stmt }")) {
+        free(stmts);
+        return NULL;
+    }
+
+    return new_block_node(stmts, count);
+}
+
+/*──────────────────────────────────────────────
+ | IF / ELSE
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_if(void)
+{
+    advance(); /* consume agar */
+
+    ASTNode *cond = parse_comparison();
+    if (!cond) return NULL;
+
+    skip_separators();
+
+    ASTNode *then_block = parse_block();
+    if (!then_block) return NULL;
+
+    skip_separators();
+
+    ASTNode *node = new_if_node(cond, then_block);
+
+    if (current.type == TOKEN_WARNA) {
+        advance(); /* consume warna */
+        skip_separators();
+
+        node->else_block = parse_block();
+        if (!node->else_block) return NULL;
+
+        skip_separators();
+    }
+
+    return node;
+}
+
+/*──────────────────────────────────────────────
+ | WHILE
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_while(void)
+{
+    advance(); /* consume jabtak */
+
+    ASTNode *cond = parse_comparison();
+    if (!cond) return NULL;
+
+    skip_separators();
+
+    ASTNode *body = parse_block();
+    if (!body) return NULL;
+
+    return new_while_node(cond, body);
+}
+
+/*──────────────────────────────────────────────
+ | IMPORT "file.sri"
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_import(void)
+{
+    advance(); /* consume import */
+    skip_separators();
+
+    if (current.type != TOKEN_STRING) {
+        shriji_error_at(
+            current,
+            E_PARSE_02,
+            "import",
+            "expected string path",
+            "example: import \"math.sri\""
+        );
+        return NULL;
+    }
+
+    char mod[256];
+    int len = current.length;
+
+    const char *p = current.start;
+    if (len >= 2 && p[0] == '"' && p[len - 1] == '"') {
+        p++;
+        len -= 2;
+    }
+
+    if (len >= (int)sizeof(mod)) len = (int)sizeof(mod) - 1;
+    strncpy(mod, p, len);
+    mod[len] = 0;
+
+    advance(); /* consume string */
+
+    skip_separators();
+    return new_import_node(mod);
+}
+/*──────────────────────────────────────────────
+ | RETURN / WAPAS
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_return(void)
+{
+    advance(); /* consume wapas */
+
+    if (current.type == TOKEN_NEWLINE ||
+        current.type == TOKEN_RIGHT_BRACE ||
+        current.type == TOKEN_EOF) {
+
+        skip_separators();
+        return new_return_node(NULL);
+    }
+
+    ASTNode *val = parse_expression();
+    if (!val) return NULL;
+
+    skip_separators();
+    return new_return_node(val);
+}
+
+/*──────────────────────────────────────────────
+ | FUNCTION / KAAM
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_function(void)
+{
+    advance(); /* consume kaam */
+    skip_separators();
+
+    if (current.type != TOKEN_IDENTIFIER) {
+        shriji_error_at(current, E_PARSE_02, "kaam", "expected function name",
+                        "kaam add(a, b) { ... }");
+        return NULL;
+    }
+
+    char fname[128];
+    strncpy(fname, current.start, current.length);
+    fname[current.length] = 0;
+    advance(); /* consume function name */
+
+    skip_separators();
+
+    if (!expect(TOKEN_LEFT_PAREN, E_PARSE_02, "(", "missing (",
+                "kaam add(a, b) { ... }"))
+        return NULL;
+
+    ASTNode **params = NULL;
+    int param_count = 0;
+
+    skip_separators();
+
+    if (current.type != TOKEN_RIGHT_PAREN) {
+        while (1) {
+
+            if (current.type != TOKEN_IDENTIFIER) {
+                shriji_error_at(current, E_PARSE_02, "params",
+                                "expected parameter name",
+                                "kaam add(a, b) { ... }");
+                free(params);
+                return NULL;
+            }
+
+            char p[128];
+            strncpy(p, current.start, current.length);
+            p[current.length] = 0;
+            advance();
+
+            ASTNode **tmp = realloc(params, sizeof(ASTNode*) * (param_count + 1));
+            if (!tmp) {
+                free(params);
+                return NULL;
+            }
+            params = tmp;
+
+            params[param_count++] = new_identifier_node(p);
+
+            skip_separators();
+
+            if (current.type == TOKEN_COMMA) {
+                advance();
+                skip_separators();
+            }
+
+            if (current.type == TOKEN_RIGHT_PAREN)
+                break;
+        }
+    }
+
+    if (!expect(TOKEN_RIGHT_PAREN, E_PARSE_02, ")", "missing )",
+                "kaam add(a, b) { ... }")) {
+        free(params);
+        return NULL;
+    }
+
+    skip_separators();
+
+    ASTNode *body = parse_block();
+    if (!body) return NULL;
+
+    skip_separators();
+    return new_function_node(fname, params, param_count, body);
+}
+
+
+/*──────────────────────────────────────────────
+ | IDENTIFIER / UPDATE
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_update_or_identifier(void)
+{
+    if (current.type != TOKEN_IDENTIFIER)
+        return NULL;
+
+    /* identifier name */
+    char name[128];
+    strncpy(name, current.start, current.length);
+    name[current.length] = 0;
+    advance(); /* consume identifier */
+
+    /*
+     * IMPORTANT:
+     * identifier aur '=' ke beech newline allow nahi honi chahiye
+     * warna '=' next statement ban jaata hai
+     */
+    if (current.type == TOKEN_NEWLINE) {
+        Token saved = current;
+        advance();
+        if (current.type != TOKEN_EQUAL) {
+            current = saved; /* rollback */
+        }
+    }
+
+    /* build base with postfix: a[0], d["a"], etc */
+    ASTNode *base = parse_postfix(new_identifier_node(name));
+    if (!base) return NULL;
+
+    /* INDEX UPDATE: a[expr] = value */
+    if (base->type == AST_INDEX && current.type == TOKEN_EQUAL) {
+
+        advance(); /* consume '=' */
+        skip_separators();
+
+        ASTNode *val = parse_expression();
+        if (!val) return NULL;
+
+        skip_separators();
+        return new_index_update_node(
+            base->index_target,
+            base->index_expr,
+            val
+        );
+    }
+
+    /* UPDATE: x = expr */
+    if (current.type == TOKEN_EQUAL) {
+
+        advance(); /* consume '=' */
+        skip_separators();
+
+        ASTNode *val = parse_expression();
+        if (!val) return NULL;
+
+        skip_separators();
+        return new_update_node(name, val);
+    }
+
+    /* plain identifier / indexed expression */
+    return base;
+}
+
+
+/*──────────────────────────────────────────────
+  ASSIGNMENT (MAVI)
+──────────────────────────────────────────────*/
+static ASTNode *parse_assignment(void)
+{
+    advance(); /* consume 'mavi' */
+    skip_separators();
+
+    /* variable name */
+    if (current.type != TOKEN_IDENTIFIER) {
+        shriji_error_at(
+            current,
+            E_ASSIGN_01,
+            "mavi",
+            "Declaration samajh li, par variable ka naam clear nahi hua.",
+            "mavi x  ya  mavi x = 10"
+        );
+        return NULL;
+    }
+
+    char name[128];
+    strncpy(name, current.start, current.length);
+    name[current.length] = 0;
+    advance(); /* consume identifier */
+
+    skip_separators();
+
+    /* OPTIONAL initialization */
+    if (current.type == TOKEN_EQUAL) {
+
+        advance(); /* consume '=' */
+        skip_separators();
+
+        ASTNode *val = parse_expression();
+        if (!val) return NULL;
+
+        skip_separators();
+        return new_assignment_node(name, val);
+    }
+
+    /* declaration without value */
+    return new_assignment_node(name, NULL);
+}
+
+/*──────────────────────────────────────────────
+ | EXPRESSIONS
+ | precedence:
+ |   primary -> unary -> term(* / %) -> expression(+ -) -> comparison
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_comparison(void)
+{
+    ASTNode *n = parse_expression();
+
+    while (current.type == TOKEN_GT  ||
+           current.type == TOKEN_LT  ||
+           current.type == TOKEN_GTE ||
+           current.type == TOKEN_LTE ||
+           current.type == TOKEN_EQEQ ||
+           current.type == TOKEN_NEQ) {
+
+        char op =
+            (current.type == TOKEN_GT)    ? '>' :
+            (current.type == TOKEN_LT)    ? '<' :
+            (current.type == TOKEN_GTE)   ? 'G' :  /* >= */
+            (current.type == TOKEN_LTE)   ? 'L' :  /* <= */
+            (current.type == TOKEN_EQEQ)  ? '=' :  /* == */
+            (current.type == TOKEN_NEQ)   ? '!' :  /* != */
+            '?';
+
+        advance();
+        n = new_binary_node(op, n, parse_expression());
+    }
+
+    return n;
+}
+
+static ASTNode *parse_expression(void)
+{
+    ASTNode *n = parse_term();
+
+    while (current.type == TOKEN_PLUS ||
+           current.type == TOKEN_MINUS) {
+
+        char op = (current.type == TOKEN_PLUS) ? '+' : '-';
+        advance();
+        n = new_binary_node(op, n, parse_term());
+    }
+
+    return n;
+}
+
+static ASTNode *parse_term(void)
+{
+    ASTNode *n = parse_unary();
+
+    while (current.type == TOKEN_STAR ||
+           current.type == TOKEN_SLASH ||
+           current.type == TOKEN_MOD) {
+
+        char op =
+            (current.type == TOKEN_STAR)  ? '*' :
+            (current.type == TOKEN_SLASH) ? '/' : '%';
+
+        advance();
+        n = new_binary_node(op, n, parse_unary());
+    }
+
+    return n;
+}
+
+
+/*──────────────────────────────────────────────
+ | UNARY
+ |   - prefix ++x / --x
+ |   - nahi (logical not)
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_unary(void)
+{
+    /* prefix ++ */
+    if (current.type == TOKEN_PLUSPLUS) {
+        advance();
+        ASTNode *expr = parse_unary();
+        if (!expr) return NULL;
+        return new_inc_node(expr, 1); /* prefix */
+    }
+
+    /* prefix -- */
+    if (current.type == TOKEN_MINUSMINUS) {
+        advance();
+        ASTNode *expr = parse_unary();
+        if (!expr) return NULL;
+        return new_dec_node(expr, 1); /* prefix */
+    }
+
+    /* nahi (logical not) */
+    if (current.type == TOKEN_NAHI) {
+        advance();
+        ASTNode *expr = parse_unary();
+        if (!expr) return NULL;
+        return new_not_node(expr);
+    }
+
+    return parse_primary();
+}
+
+
+/*──────────────────────────────────────────────
+ | LIST LITERAL: [a, b, c]
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_list_literal(void)
+{
+    if (!expect(TOKEN_LEFT_BRACKET, E_PARSE_02, "[", "missing [", "[1,2,3]"))
+        return NULL;
+
+    skip_separators();
+
+    ASTNode **elements = NULL;
+    int count = 0;
+
+    /* empty list: [] */
+    if (current.type != TOKEN_RIGHT_BRACKET) {
+
+        while (1) {
+
+            ASTNode *elem = parse_expression();
+            if (!elem) {
+                free(elements);
+                return NULL;
+            }
+
+            ASTNode **tmp = realloc(elements, sizeof(ASTNode*) * (count + 1));
+            if (!tmp) {
+                free(elements);
+                return NULL;
+            }
+            elements = tmp;
+            elements[count++] = elem;
+
+            skip_separators();
+
+            if (current.type == TOKEN_RIGHT_BRACKET)
+                break;
+
+            if (!expect(TOKEN_COMMA, E_PARSE_02, ",", "expected ','", "[1, 2, 3]")) {
+                free(elements);
+                return NULL;
+            }
+
+            skip_separators();
+        }
+    }
+
+    if (!expect(TOKEN_RIGHT_BRACKET, E_PARSE_02, "]", "missing ]", "[1,2,3]")) {
+        free(elements);
+        return NULL;
+    }
+
+    skip_separators();
+    return new_list_node(elements, count);
+}
+
+
+
+
+/*──────────────────────────────────────────────
+ | POSTFIX:
+ |   - indexing: a[0]
+ |   - index update: a[0] = x
+ |   - postfix inc/dec: x++ , x--
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_postfix(ASTNode *base)
+{
+    ASTNode *node = base;
+
+    while (1) {
+
+        /* ───── indexing: a[expr] or a[expr] = value ───── */
+        if (current.type == TOKEN_LEFT_BRACKET) {
+
+            advance(); /* consume '[' */
+            skip_separators();
+
+            ASTNode *idx = parse_expression();
+            if (!idx) return NULL;
+
+            skip_separators();
+
+            if (!expect(TOKEN_RIGHT_BRACKET, E_PARSE_02,
+                        "]", "missing ]", "a[0]"))
+                return NULL;
+
+            skip_separators();
+
+            /* a[expr] = value */
+            if (current.type == TOKEN_EQUAL) {
+
+                advance(); /* consume '=' */
+                skip_separators();
+
+                ASTNode *val = parse_expression();
+                if (!val) return NULL;
+
+                skip_separators();
+                node = new_index_update_node(node, idx, val);
+
+            } else {
+                /* a[expr] */
+                node = new_index_node(node, idx);
+            }
+
+            continue;
+        }
+
+        /* ───── postfix ++ ───── */
+        if (current.type == TOKEN_PLUSPLUS) {
+            advance();
+            node = new_inc_node(node, 0); /* postfix */
+            continue;
+        }
+
+        /* ───── postfix -- ───── */
+        if (current.type == TOKEN_MINUSMINUS) {
+            advance();
+            node = new_dec_node(node, 0); /* postfix */
+            continue;
+        }
+
+        break;
+    }
+
+    return node;
+}
+
+/*──────────────────────────────────────────────
+ | PRIMARY
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_primary(void)
+{
+    if (current.type == TOKEN_NUMBER) {
+        int v = atoi(current.start);
+        advance();
+        return new_number_node(v);
+    }
+
+if (current.type == TOKEN_STRING) {
+    char s[256];
+    int len = current.length;
+
+    const char *p = current.start;
+    if (len >= 2 && p[0] == '"' && p[len - 1] == '"') {
+        p++;
+        len -= 2;
+    }
+
+    unescape_into(s, sizeof(s), p, len);
+
+    advance();
+    return new_string_node(s);
+}
+
+    if (current.type == TOKEN_TRUE) {
+        advance();
+        return new_number_node(1);
+    }
+
+    if (current.type == TOKEN_FALSE) {
+        advance();
+        return new_number_node(0);
+    }
+
+    /* list literal: [ ... ] */
+    if (current.type == TOKEN_LEFT_BRACKET) {
+        ASTNode *lst = parse_list_literal();
+        if (!lst) return NULL;
+        return parse_postfix(lst);
+    }
+
+/* dict literal: { ... } */
+if (current.type == TOKEN_LEFT_BRACE) {
+    ASTNode *d = parse_dict_literal();
+    if (!d) return NULL;
+    return parse_postfix(d);
+}
+
+    if (current.type == TOKEN_IDENTIFIER) {
+
+        char name[128];
+        strncpy(name, current.start, current.length);
+        name[current.length] = 0;
+        advance();
+
+        /* call: name(...) */
+        if (current.type == TOKEN_LEFT_PAREN) {
+
+            advance(); /* consume '(' */
+            skip_separators();
+
+            ASTNode **args = NULL;
+            int arg_count = 0;
+
+            if (current.type != TOKEN_RIGHT_PAREN) {
+                while (1) {
+
+                    ASTNode *arg = parse_expression();
+                    if (!arg) {
+                        free(args);
+                        return NULL;
+                    }
+
+                    ASTNode **tmp = realloc(args, sizeof(ASTNode*) * (arg_count + 1));
+                    if (!tmp) {
+                        free(args);
+                        return NULL;
+                    }
+                    args = tmp;
+                    args[arg_count++] = arg;
+
+                    skip_separators();
+
+                    if (current.type == TOKEN_RIGHT_PAREN)
+                        break;
+
+                    if (!expect(TOKEN_COMMA, E_PARSE_02, ",", "expected ','",
+                                "example: add(10, 20)")) {
+                        free(args);
+                        return NULL;
+                    }
+
+                    skip_separators();
+                }
+            }
+
+            if (!expect(TOKEN_RIGHT_PAREN, E_PARSE_01, ")", "missing ')'",
+                        "example: add(10, 20)")) {
+                free(args);
+                return NULL;
+            }
+
+            skip_separators();
+            return parse_postfix(new_call_node(name, args, arg_count));
+        }
+
+        return parse_postfix(new_identifier_node(name));
+    }
+
+    if (current.type == TOKEN_LEFT_PAREN) {
+        advance();
+        ASTNode *n = parse_comparison();
+        if (!n) return NULL;
+
+        if (!expect(TOKEN_RIGHT_PAREN, E_PARSE_02, ")", "missing )", "(expr)"))
+            return NULL;
+
+        return parse_postfix(n);
+    }
+
+    shriji_error_at(current, E_PARSE_02, "expr", "bad token", "check syntax");
+    return NULL;
+}
+
+/*──────────────────────────────────────────────
+ | DICT / MAP LITERAL: { "a": 1, "b": 2 }
+ *──────────────────────────────────────────────*/
+static ASTNode *parse_dict_literal(void)
+{
+    if (!expect(TOKEN_LEFT_BRACE, E_PARSE_02, "{", "missing {", "{\"a\":1}"))
+        return NULL;
+
+    skip_separators();
+
+    ASTNode **keys = NULL;
+    ASTNode **vals = NULL;
+    int count = 0;
+
+    /* empty dict: {} */
+    if (current.type != TOKEN_RIGHT_BRACE) {
+
+        while (1) {
+
+            /* key must be string for v1 */
+            if (current.type != TOKEN_STRING) {
+                shriji_error_at(
+                    current,
+                    E_PARSE_02,
+                    "dict",
+                    "dict key must be string",
+                    "example: {\"a\": 1, \"b\": 2}"
+                );
+                free(keys);
+                free(vals);
+                return NULL;
+            }
+
+            /* parse key as string node */
+            ASTNode *k = parse_primary();
+            if (!k) {
+                free(keys);
+                free(vals);
+                return NULL;
+            }
+
+            skip_separators();
+
+            if (!expect(TOKEN_COLON, E_PARSE_02, ":", "missing ':'",
+                        "example: {\"a\": 1}")) {
+                free(keys);
+                free(vals);
+                return NULL;
+            }
+
+            skip_separators();
+
+            /* parse value expression */
+            ASTNode *v = parse_expression();
+            if (!v) {
+                free(keys);
+                free(vals);
+                return NULL;
+            }
+
+            /* push pair */
+            ASTNode **tmpk = realloc(keys, sizeof(ASTNode*) * (count + 1));
+            ASTNode **tmpv = realloc(vals, sizeof(ASTNode*) * (count + 1));
+            if (!tmpk || !tmpv) {
+                free(tmpk);
+                free(tmpv);
+                free(keys);
+                free(vals);
+                return NULL;
+            }
+            keys = tmpk;
+            vals = tmpv;
+
+            keys[count] = k;
+            vals[count] = v;
+            count++;
+
+            skip_separators();
+
+            /* end? */
+            if (current.type == TOKEN_RIGHT_BRACE)
+                break;
+
+            if (!expect(TOKEN_COMMA, E_PARSE_02, ",", "expected ','",
+                        "example: {\"a\": 1, \"b\": 2}")) {
+                free(keys);
+                free(vals);
+                return NULL;
+            }
+
+            skip_separators();
+        }
+    }
+
+    if (!expect(TOKEN_RIGHT_BRACE, E_PARSE_02, "}", "missing }", "{\"a\":1}")) {
+        free(keys);
+        free(vals);
+        return NULL;
+    }
+
+    skip_separators();
+    return new_dict_node(keys, vals, count);
+}

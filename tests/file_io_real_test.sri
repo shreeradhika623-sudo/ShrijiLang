@@ -1,0 +1,12 @@
+bolo "FILE IO REAL TEST START"
+
+mavi w = likho("io_test.txt", "Hello")
+bolo w
+
+mavi a = jodo("io_test.txt", " World")
+bolo a
+
+mavi r = padho("io_test.txt")
+bolo r
+
+bolo "FILE IO REAL TEST END"

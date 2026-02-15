@@ -1,0 +1,47 @@
+mavi sum = 0
+mavi i = 1
+mavi j = 1
+
+agar 1 {
+    mavi sum = (10 + 20) * (3 + 1) - 15
+}
+
+agar 1 {
+    mavi i = 1
+    agar i < 150000 {
+        mavi sum = sum + i * 3 - 1
+        mavi i = i + 1
+        agar 1 { }
+    }
+}
+
+agar 1 {
+    mavi j = 1
+    agar j < 250000 {
+        mavi sum = (sum * 7 + j * 11 - 9) / 3
+        mavi j = j + 1
+        agar 1 { }
+    }
+}
+
+mavi a = 1
+mavi b = 2
+mavi c = 3
+mavi d = 4
+
+agar 1 {
+    agar 1 {
+        agar a < 100 {
+            mavi a = a + b * c - d
+            mavi d = d + 1
+        }
+    }
+}
+
+mavi k = 0
+agar 1 {
+    mavi k = k + 1
+    agar k < 300000 {
+        agar 1 { }
+    }
+}

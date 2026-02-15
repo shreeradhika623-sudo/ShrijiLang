@@ -1,0 +1,6 @@
+mavi d = {"a": 1}
+bolo d["a"]
+d["a"] = 123
+bolo d["a"]
+d["b"] = 999
+bolo d["b"]

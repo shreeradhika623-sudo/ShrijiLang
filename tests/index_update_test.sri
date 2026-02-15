@@ -1,0 +1,10 @@
+mavi a = [10, 20, 30]
+a[1] = 99
+bolo a[1]
+
+mavi d = {"x": 1}
+d["x"] = 5
+bolo d["x"]
+
+d["y"] = 42
+bolo d["y"]

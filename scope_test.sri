@@ -1,0 +1,12 @@
+bolo "=== scope test ==="
+
+mavi x = 5
+bolo x
+
+agar true {
+    mavi x = 10
+    bolo x
+}
+
+bolo x
+wapas 0

@@ -1,0 +1,15 @@
+mavi i = 0
+mavi sum = 0
+
+jabtak i < 10 {
+
+    i = i + 1
+
+    agar i == 5 {
+        chalu
+    }
+
+    sum = sum + i
+}
+
+sum

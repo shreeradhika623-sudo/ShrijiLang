@@ -1,0 +1,21 @@
+bolo "=== string test ==="
+
+mavi a = "hello"
+mavi b = "world"
+
+bolo a + " " + b
+bolo "x=" + 10
+
+agar "hi" == "hi" {
+    bolo "equal ok"
+} warna {
+    bolo "equal fail"
+}
+
+agar "hi" != "bye" {
+    bolo "neq ok"
+} warna {
+    bolo "neq fail"
+}
+
+wapas 0

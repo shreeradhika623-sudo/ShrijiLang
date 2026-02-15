@@ -1,0 +1,13 @@
+mavi i = 0
+mavi x = 1
+mavi total = 0
+
+agar 1 {
+    i = i + 1
+    x = (x * 1234567 + 891011) / 3
+    total = total + (x % 97)
+
+    agar i < 5000000 {
+        agar 1 { }
+    }
+}

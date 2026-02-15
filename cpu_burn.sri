@@ -1,0 +1,12 @@
+mavi i = 0
+mavi total = 0
+
+agar 1 {
+    total = total + 1
+    i = i + 1
+
+    agar i < 20000000 {
+        agar 1 {
+        }
+    }
+}

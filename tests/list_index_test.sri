@@ -1,0 +1,4 @@
+mavi a = [10, 20, 30]
+bolo a[0]
+bolo a[1]
+bolo a[2]

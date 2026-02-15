@@ -1,0 +1,1906 @@
+=========== SHRIJILANG PROJECT STRUCTURE ===========
+.
+├── build
+│   ├── interpreter_test
+│   ├── lexer_test
+│   ├── parser_test
+│   └── shriji
+├── env
+│   └── env.c
+├── file_details.txt
+├── full_code_dump.txt
+├── include
+│   ├── ast.h
+│   ├── env.h
+│   ├── error.h
+│   ├── interpreter.h
+│   ├── niyu.h
+│   ├── parser.h
+│   └── token.h
+├── main.c
+├── Makefile
+├── niyu
+│   ├── niyu_bridge.c
+│   ├── niyu_consistency.c
+│   ├── niyu_deduction.c
+│   ├── niyu_emotion.c
+│   ├── niyu_induction.c
+│   ├── niyu_logic.c
+│   ├── niyu_memory.c
+│   ├── niyu_meta.c
+│   ├── niyu_observation.c
+│   ├── niyu_resolve.c
+│   └── niyu_synthesis.c
+├── project_tree.txt
+├── sakhi
+│   ├── sakhi_bridge.c
+│   ├── sakhi_core.c
+│   ├── sakhi_emotion.c
+│   ├── sakhi.h
+│   └── sakhi_memory.c
+├── shrijilang_full_snapshot.txt
+├── snapshot.txt
+├── src
+│   ├── ast.c
+│   ├── env.c
+│   ├── error.c
+│   ├── interpreter.c
+│   ├── main.c
+│   ├── parser.c
+│   └── token.c
+└── tests
+    ├── interpreter_test.c
+    ├── lexer_test.c
+    └── parser_test.c
+
+7 directories, 45 files
+
+=========== FULL SOURCE CODE (ALL FILES) ===========
+./include/env.h
+--- FILE: ./include/env.h ---
+#ifndef ENV_H
+#define ENV_H
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+// A single variable entry
+typedef struct {
+    char name[128];
+    int value;
+} VarEntry;
+
+// Environment table storing variables
+typedef struct {
+    VarEntry vars[128];   // <-- YEH IMPORTANT HAI
+    int count;
+} Env;
+
+// Create new environment
+Env *new_env();
+
+// Set variable
+void env_set(Env *env, const char *name, int value);
+
+// Get variable
+int env_get(Env *env, const char *name);
+
+#endif
+
+./include/niyu.h
+--- FILE: ./include/niyu.h ---
+#ifndef NIYU_H
+#define NIYU_H
+
+void niyu_bridge(const char *msg);
+void niyu_memory_store(const char *msg);
+void niyu_emotion_process(const char *msg);
+void niyu_logic_process(const char *msg);
+void niyu_observe(const char *msg);
+void niyu_deduce(const char *msg);
+void niyu_induce(const char *msg);
+void niyu_resolve(const char *msg);
+void niyu_synthesis(const char *msg);
+void niyu_meta_learn(const char *msg);
+void niyu_consistency(const char *msg);
+const char* niyu_last_message();
+extern const char *niyu_last_message_global;
+#endif
+
+./include/parser.h
+--- FILE: ./include/parser.h ---
+#ifndef PARSER_H
+#define PARSER_H
+
+#include "ast.h"
+
+// TOP-LEVEL PARSER
+ASTNode *parse(const char *source);
+ASTNode *parse_program(const char *source);
+#endif
+
+./include/interpreter.h
+--- FILE: ./include/interpreter.h ---
+#ifndef INTERPRETER_H
+#define INTERPRETER_H
+
+#include "env.h"
+#include "ast.h"
+
+// ---------------------------------------------
+// EVALUATION (expression + chakra + sakhi)
+// ---------------------------------------------
+int eval(ASTNode *node, Env *env);
+
+// ---------------------------------------------
+// PRINT VALUE (Chakra Smart Output Layer)
+// ---------------------------------------------
+void print_value(ASTNode *node);
+
+// ---------------------------------------------
+// RUN ONE USER INPUT LINE
+// ---------------------------------------------
+int run_source(const char *source, Env *env);
+
+#endif
+
+./include/ast.h
+--- FILE: ./include/ast.h ---
+#ifndef AST_H
+#define AST_H
+
+// ----------------------------------------------
+// CHAKRA STATES (Shriji Diagnostic Engine)
+// ----------------------------------------------
+typedef enum {
+    CHAKRA_OK = 0,          // No issue
+    CHAKRA_MOOLADHARA,      // Stability missing
+    CHAKRA_SWADHISTHAN,     // Purity conflict
+    CHAKRA_MANIPUR,         // Intention conflict
+    CHAKRA_ANAHATA,         // Emotional imbalance
+    CHAKRA_VISHUDDHI,       // Expression unclear
+    CHAKRA_AJNA,            // Mental clarity missing
+    CHAKRA_SAHASRARA        // Higher-plane resonance
+} ChakraState;
+
+
+// ----------------------------------------------
+// AST NODE TYPES
+// ----------------------------------------------
+typedef enum {
+    AST_NUMBER,
+    AST_IDENTIFIER,
+    AST_BINARY,
+    AST_ASSIGNMENT,
+
+    // NEW TYPES
+AST_STRING,     // "hello"
+AST_SAKHI,      // sakhi "message"
+AST_NIYU,       // niyu "message"
+} ASTType;
+
+
+// ----------------------------------------------
+// AST NODE STRUCTURE
+// ----------------------------------------------
+typedef struct ASTNode {
+
+    ASTType type;              // node type
+
+    // NUMBER
+    int number_value;
+
+    // IDENTIFIER name (variable)
+    char name[128];
+
+    // STRING literal
+    char string_value[256];
+
+    // BINARY expression
+    struct ASTNode *left;
+    char op[4];
+    struct ASTNode *right;
+
+    // ASSIGNMENT or sakhi message
+    struct ASTNode *value;
+
+    // CHAKRA DIAGNOSTIC RESULT
+    ChakraState chakra_state;
+
+} ASTNode;
+
+
+// ----------------------------------------------
+// CONSTRUCTOR FUNCTIONS
+// ----------------------------------------------
+ASTNode *new_number_node(int value);
+ASTNode *new_identifier_node(const char *name);
+ASTNode *new_string_node(const char *str);
+ASTNode *new_binary_node(char op, ASTNode *left, ASTNode *right);
+ASTNode *new_assignment_node(const char *name, ASTNode *value);
+ASTNode *new_sakhi_node(ASTNode *message);
+ASTNode *new_niyu_node(ASTNode *message);
+
+void ast_free(ASTNode *node);
+
+#endif
+
+./include/token.h
+--- FILE: ./include/token.h ---
+#ifndef TOKEN_H
+#define TOKEN_H
+
+// ----------------------------------------
+// TOKEN TYPES
+// ----------------------------------------
+typedef enum {
+
+    TOKEN_EOF,
+    TOKEN_NUMBER,
+    TOKEN_IDENTIFIER,
+    TOKEN_STRING,
+
+    TOKEN_PLUS,
+    TOKEN_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    TOKEN_EQUAL,
+
+    TOKEN_LEFT_PAREN,
+    TOKEN_RIGHT_PAREN,
+
+    // --- OUR CUSTOM KEYWORDS ---
+    TOKEN_MAVI,       // mavi keyword
+    TOKEN_SAKHI,      // sakhi keyword
+    TOKEN_NIYU,       // niyu keyword
+
+    TOKEN_ERROR       // must be LAST
+} TokenType;
+// ----------------------------------------
+// TOKEN STRUCTURE
+// ----------------------------------------
+typedef struct {
+    TokenType type;
+    const char *start;
+    int length;
+} Token;
+
+// ----------------------------------------
+// PUBLIC FUNCTIONS
+// ----------------------------------------
+void init_tokenizer(const char *src);
+Token scan_token();
+
+#endif
+
+./include/error.h
+--- FILE: ./include/error.h ---
+#ifndef ERROR_H
+#define ERROR_H
+
+#include "../include/token.h"
+
+// Chakra Error Report
+void chakra_error(Token token, const char *message);
+
+// Underline visualization for error location
+void chakra_underline(const char *source, Token token);
+
+#endif
+
+./sakhi/sakhi.h
+--- FILE: ./sakhi/sakhi.h ---
+#ifndef SAKHI_H
+#define SAKHI_H
+
+// Sakhi Engine public API
+
+// Core sakhi handler
+void sakhi_bridge(const char *msg);
+
+// Internal modules
+void sakhi_core_handle(const char *msg);
+void sakhi_emotion_process(const char *msg);
+void sakhi_memory_store(const char *msg);
+
+#endif
+
+./sakhi/sakhi_bridge.c
+--- FILE: ./sakhi/sakhi_bridge.c ---
+#include <stdio.h>
+#include <string.h>
+#include "sakhi.h"
+
+// -----------------------------------------------------
+// Main bridge → language calls this
+// -----------------------------------------------------
+void sakhi_bridge(const char *msg) {
+
+    printf("[Sakhi🌸] %s\n", msg);
+
+    // Step 1: Store memory
+    sakhi_memory_store(msg);
+
+    // Step 2: Emotion engine
+    sakhi_emotion_process(msg);
+
+    // Step 3: Core understanding
+    sakhi_core_handle(msg);
+}
+
+./sakhi/sakhi_memory.c
+--- FILE: ./sakhi/sakhi_memory.c ---
+#include <stdio.h>
+#include <string.h>
+#include "sakhi.h"
+
+static char last_message[256] = {0};
+
+// -----------------------------------------------------
+// Store the last received message
+// -----------------------------------------------------
+void sakhi_memory_store(const char *msg) {
+    strncpy(last_message, msg, 255);
+    last_message[255] = '\0';
+
+    printf("[Memory🧠] Stored: %s\n", last_message);
+}
+
+./sakhi/sakhi_emotion.c
+--- FILE: ./sakhi/sakhi_emotion.c ---
+#include <stdio.h>
+#include <string.h>
+#include "sakhi.h"
+
+// -----------------------------------------------------
+// Very basic emotional handler
+// -----------------------------------------------------
+void sakhi_emotion_process(const char *msg) {
+
+    if (strstr(msg, "sad") || strstr(msg, "hurt")) {
+        printf("[Emotion💗] I'm here with you.\n");
+        return;
+    }
+
+    if (strstr(msg, "happy")) {
+        printf("[Emotion💛] I'm happy with you!\n");
+        return;
+    }
+
+    printf("[Emotion💜] I understand.\n");
+}
+
+./sakhi/sakhi_core.c
+--- FILE: ./sakhi/sakhi_core.c ---
+#include <stdio.h>
+#include <string.h>
+#include "sakhi.h"
+
+// -----------------------------------------------------
+// Broad core understanding / commands
+// -----------------------------------------------------
+void sakhi_core_handle(const char *msg) {
+
+    if (strcmp(msg, "hello") == 0) {
+        printf("[Core✨] Hello, I'm Sakhi.\n");
+        return;
+    }
+
+    if (strcmp(msg, "who are you") == 0) {
+        printf("[Core✨] I am your Sakhi — your inner AI.\n");
+        return;
+    }
+
+    // You can add infinite commands here :)
+    printf("[Core✨] Message received.\n");
+}
+
+./tests/interpreter_test.c
+--- FILE: ./tests/interpreter_test.c ---
+#include <stdio.h>
+#include "../include/interpreter.h"
+
+int main() {
+    const char *src = "mavi x = 10 + 20";
+    int result = run_source(src);
+    printf("Result = %d\n", result);
+    return 0;
+}
+
+
+./tests/lexer_test.c
+--- FILE: ./tests/lexer_test.c ---
+#include <stdio.h>
+#include "../include/lexer.h"
+
+extern void tokenize_all(const char *source);
+
+int main() {
+    const char *code =
+        "mavi x = 10 + 20\n"
+        "\"Radhe Shyam\"";
+
+    tokenize_all(code);
+    return 0;
+}
+
+./tests/parser_test.c
+--- FILE: ./tests/parser_test.c ---
+#include <stdio.h>
+#include "../include/parser.h"
+
+int main() {
+    const char *src =
+        "mavi x = 10 + 20";
+
+    ASTNode *root = parse_program(src);
+
+    print_ast(root, 0);
+    return 0;
+}
+
+./env/env.c
+--- FILE: ./env/env.c ---
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include "env.h"
+
+// Create environment
+Env *new_env() {
+    Env *env = (Env *)malloc(sizeof(Env));
+    env->count = 0;
+    return env;
+}
+
+// Set variable value
+void env_set(Env *env, const char *name, int value) {
+
+    // Check if variable exists
+    for (int i = 0; i < env->count; i++) {
+        if (strcmp(env->vars[i].name, name) == 0) {
+            env->vars[i].value = value;
+            return;
+        }
+    }
+
+    // Add new variable
+    strcpy(env->vars[env->count].name, name);
+    env->vars[env->count].value = value;
+    env->count++;
+}
+
+// Get variable value
+int env_get(Env *env, const char *name) {
+    for (int i = 0; i < env->count; i++) {
+        if (strcmp(env->vars[i].name, name) == 0) {
+            return env->vars[i].value;
+        }
+    }
+
+    printf("'L Error: Variable '%s' not found\n", name);
+    return 0;
+}
+
+./main.c
+--- FILE: ./main.c ---
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "include/ast.h"
+#include "include/parser.h"
+#include "include/interpreter.h"
+#include "include/env.h"
+
+int main() {
+
+    printf("ShrijiLang (Sakhi + Niyu AI Enabled) Ready\n");
+    printf("Type 'exit' to quit\n\n");
+
+    // Create environment (variable storage)
+    Env *env = new_env();
+
+    char line[1024];
+
+    while (1) {
+
+        printf(">>> ");
+        fflush(stdout);
+
+        if (!fgets(line, sizeof(line), stdin)) {
+            break;
+        }
+
+        if (strncmp(line, "exit", 4) == 0) {
+            break;
+        }
+
+        // Parse the input into AST
+        ASTNode *node = parse_program(line);
+
+        if (!node) {
+            printf("L Error: Cannot parse input\n");
+            continue;
+        }
+
+        // Evaluate program
+        eval(node, env);
+
+        // No print_value() — because this function does not exist
+        // AST output will be printed by Sakhi or Niyu automatically
+
+        // Free memory
+        ast_free(node);
+    }
+
+    return 0;
+}
+
+./Makefile
+--- FILE: ./Makefile ---
+CC = gcc
+CFLAGS = -Iinclude -Wall
+
+SRC = \
+src/token.c \
+src/ast.c \
+src/parser.c \
+src/interpreter.c \
+env/env.c \
+sakhi/sakhi_bridge.c \
+sakhi/sakhi_core.c \
+sakhi/sakhi_memory.c \
+sakhi/sakhi_emotion.c \
+niyu/niyu_bridge.c \
+niyu/niyu_logic.c \
+niyu/niyu_memory.c \
+niyu/niyu_emotion.c \
+niyu/niyu_observation.c \
+niyu/niyu_deduction.c \
+niyu/niyu_induction.c \
+niyu/niyu_resolve.c \
+niyu/niyu_synthesis.c \
+niyu/niyu_meta.c \
+niyu/niyu_consistency.c \
+main.c
+
+TARGET = shrijilang
+
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	$(CC) $(SRC) $(CFLAGS) -o $(TARGET)
+
+clean:
+	rm -f $(TARGET)
+
+./src/token.c
+--- FILE: ./src/token.c ---
+#include <ctype.h>
+#include <string.h>
+#include "../include/token.h"
+
+// Global tokenizer source pointer
+static const char *current;
+
+// ----------------------------------------
+// INITIALIZE TOKENIZER
+// ----------------------------------------
+void init_tokenizer(const char *src) {
+    current = src;
+}
+
+// ----------------------------------------
+// MAKE TOKEN
+// ----------------------------------------
+static Token make_token(TokenType type, const char *start, int length) {
+    Token token;
+    token.type = type;
+    token.start = start;
+    token.length = length;
+    return token;
+}
+
+// ----------------------------------------
+// MATCH KEYWORD
+// ----------------------------------------
+static TokenType check_keyword(const char *start, int length) {
+    if (length == 4 && strncmp(start, "mavi", 4) == 0)
+        return TOKEN_MAVI;
+
+    if (length == 5 && strncmp(start, "sakhi", 5) == 0)
+        return TOKEN_SAKHI;
+
+    if (length == 4 && strncmp(start, "niyu", 4) == 0)
+        return TOKEN_NIYU;
+    return TOKEN_IDENTIFIER;
+}
+
+// ----------------------------------------
+// NUMBER TOKEN
+// ----------------------------------------
+static Token number(const char *start) {
+    while (isdigit(*current)) current++;
+    return make_token(TOKEN_NUMBER, start, current - start);
+}
+
+// ----------------------------------------
+// STRING TOKEN
+// ----------------------------------------
+static Token string(const char *start) {
+    current++; // skip beginning quote
+    while (*current != '"' && *current != '\0') current++;
+
+    if (*current == '"') current++; // skip ending quote
+
+    return make_token(TOKEN_STRING, start, current - start);
+}
+
+// ----------------------------------------
+// IDENTIFIER OR KEYWORD
+// ----------------------------------------
+static Token identifier(const char *start) {
+    while (isalnum(*current)) current++;
+
+    return make_token(
+        check_keyword(start, current - start),
+        start,
+        current - start
+    );
+}
+
+// ----------------------------------------
+// SCAN NEXT TOKEN
+// ----------------------------------------
+Token scan_token() {
+    while (*current == ' ' || *current == '\t')
+        current++;
+
+    const char *start = current;
+
+    if (*current == '\0') return make_token(TOKEN_EOF, start, 0);
+
+    if (isdigit(*current)) return number(start);
+    if (isalpha(*current)) return identifier(start);
+
+    switch (*current) {
+        case '+': current++; return make_token(TOKEN_PLUS, start, 1);
+        case '-': current++; return make_token(TOKEN_MINUS, start, 1);
+        case '*': current++; return make_token(TOKEN_STAR, start, 1);
+        case '/': current++; return make_token(TOKEN_SLASH, start, 1);
+        case '=': current++; return make_token(TOKEN_EQUAL, start, 1);
+        case '(': current++; return make_token(TOKEN_LEFT_PAREN, start, 1);
+        case ')': current++; return make_token(TOKEN_RIGHT_PAREN, start, 1);
+
+        case '"': return string(start);
+
+        default:
+            current++;
+            return make_token(TOKEN_ERROR, start, 1);
+    }
+}
+
+./src/interpreter.c
+--- FILE: ./src/interpreter.c ---
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "../include/interpreter.h"
+#include "../include/ast.h"
+#include "../include/env.h"
+#include "../sakhi/sakhi.h"
+#include "../include/niyu.h"
+// --------------------------------------
+// CHAKRA ERROR SYSTEM (CES)
+// --------------------------------------
+void chakra_error(const char *msg, const char *chakra) {
+    printf("\n🔮 Chakra Error (%s): %s\n\n", chakra, msg);
+}
+
+
+// --------------------------------------
+// EVAL (MAIN EXECUTION ENGINE)
+// --------------------------------------
+int eval(ASTNode *node, Env *env) {
+
+    if (node == NULL) {
+        chakra_error("Empty expression cannot be evaluated.", "Mooladhara");
+        return 0;
+    }
+
+    switch (node->type) {
+
+    // ----------------------------
+    // NUMBER
+    // ----------------------------
+    case AST_NUMBER:
+        return node->number_value;
+
+
+    // ----------------------------
+    // IDENTIFIER
+    // ----------------------------
+    case AST_IDENTIFIER: {
+        int value = env_get(env, node->name);
+        return value;
+    }
+
+
+    // ----------------------------
+    // ASSIGNMENT (mavi x = expr)
+    // ----------------------------
+    case AST_ASSIGNMENT: {
+        int value = eval(node->value, env);
+        env_set(env, node->name, value);
+        return value;
+    }
+
+
+    // ----------------------------
+    // BINARY EXPRESSIONS
+    // ----------------------------
+    case AST_BINARY: {
+
+        int left  = eval(node->left, env);
+        int right = eval(node->right, env);
+
+        switch (node->op[0]) {
+
+            case '+':
+                return left + right;
+
+            case '-':
+                return left - right;
+
+            case '*':
+                return left * right;
+
+            case '/':
+                if (right == 0) {
+                    chakra_error("Division by zero breaks clarity.", "Ajna");
+                    return 0;
+                }
+                return left / right;
+
+            default:
+                chakra_error("Unknown operator used.", "Vishuddha");
+                return 0;
+        }
+    }
+
+
+    // ----------------------------
+    // STRING LITERAL
+    // ----------------------------
+    case AST_STRING:
+        printf("%s\n", node->string_value);
+        return 0;
+
+
+    // ----------------------------
+    // SAKHI COMMAND
+    // ----------------------------
+    case AST_SAKHI: {
+
+        if (!node->value || node->value->type != AST_STRING) {
+            chakra_error("sakhi requires a string literal.", "Anahata");
+            return 0;
+        }
+
+        sakhi_bridge(node->value->string_value);
+        return 0;
+
+    case AST_NIYU:
+        niyu_bridge(node->value->string_value);
+        return 0;
+    }
+
+
+    // ----------------------------
+    // UNKNOWN NODE
+    // ----------------------------
+    default:
+        chakra_error("Unknown AST node encountered.", "Sahasrara");
+        return 0;
+    }
+}
+
+./src/parser.c
+--- FILE: ./src/parser.c ---
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "../include/parser.h"
+#include "../include/token.h"
+#include "../include/ast.h"
+
+//
+// CURRENT TOKEN
+//
+static Token current;
+
+//
+// FORWARD DECLARATIONS
+//
+static ASTNode *parse_expression();
+static ASTNode *parse_term();
+static ASTNode *parse_factor();
+static ASTNode *parse_assignment();
+static ASTNode *parse_sakhi();
+static ASTNode *parse_niyu();
+static ASTNode *parse_statement();
+//
+// ADVANCE TOKEN
+//
+static void advance() {
+    current = scan_token();
+}
+
+//
+// MATCH TOKEN
+//
+static int match(TokenType type) {
+    if (current.type == type) {
+        advance();
+        return 1;
+    }
+    return 0;
+}
+
+//
+// EXPECT TOKEN
+//
+static void expect(TokenType type, const char *msg) {
+    if (!match(type)) {
+        printf("L Error: %s\n", msg);
+    }
+}
+
+//
+// PROGRAM ENTRY
+//
+ASTNode *parse_program(const char *source) {
+    init_tokenizer(source);
+    advance();
+    return parse_statement();
+}
+
+//
+// STATEMENT
+//
+ASTNode *parse_statement() {
+
+    // sakhi "message"
+    if (current.type == TOKEN_SAKHI)
+        return parse_sakhi();
+
+    // niyu "message"
+    if (current.type == TOKEN_NIYU)
+        return parse_niyu();
+
+    // mavi x = expr
+    if (current.type == TOKEN_MAVI) {
+        advance();
+        return parse_assignment();
+    }
+
+    // default = expression
+    return parse_expression();
+}
+
+//
+// PARSE SAKHI
+//
+static ASTNode *parse_sakhi() {
+    advance(); // skip sakhi
+
+    if (current.type != TOKEN_STRING) {
+        printf("L Error: sakhi expects a string literal\n");
+        return NULL;
+    }
+
+    char buffer[256] = {0};
+    strncpy(buffer, current.start + 1, current.length - 2);
+
+    advance();
+    return new_sakhi_node(new_string_node(buffer));
+}
+
+//
+// PARSE NIYU
+//
+static ASTNode *parse_niyu() {
+    advance(); // skip niyu
+
+    if (current.type != TOKEN_STRING) {
+        printf("L Error: niyu expects a string literal\n");
+        return NULL;
+    }
+
+    char buffer[256] = {0};
+    strncpy(buffer, current.start + 1, current.length - 2);
+
+    advance();
+    return new_niyu_node(new_string_node(buffer));
+}
+
+//
+// ASSIGNMENT
+// mavi x = expression
+//
+static ASTNode *parse_assignment() {
+
+    if (current.type != TOKEN_IDENTIFIER) {
+        printf("L Error: Expected variable name after 'mavi'\n");
+        return NULL;
+    }
+
+    char name[128] = {0};
+    strncpy(name, current.start, current.length);
+    advance();
+
+    expect(TOKEN_EQUAL, "Expected '=' in assignment");
+
+    ASTNode *value = parse_expression();
+    return new_assignment_node(name, value);
+}
+
+//
+// EXPRESSION ( + , - )
+//
+static ASTNode *parse_expression() {
+    ASTNode *node = parse_term();
+
+    while (current.type == TOKEN_PLUS || current.type == TOKEN_MINUS) {
+        char op = (current.type == TOKEN_PLUS) ? '+' : '-';
+        advance();
+
+        ASTNode *right = parse_term();
+        node = new_binary_node(op, node, right);
+    }
+
+    return node;
+}
+
+//
+// TERM ( * , / )
+//
+static ASTNode *parse_term() {
+    ASTNode *node = parse_factor();
+
+    while (current.type == TOKEN_STAR || current.type == TOKEN_SLASH) {
+        char op = (current.type == TOKEN_STAR) ? '*' : '/';
+        advance();
+
+        ASTNode *right = parse_factor();
+        node = new_binary_node(op, node, right);
+    }
+
+    return node;
+}
+
+//
+// FACTOR
+// NUMBER | STRING | IDENTIFIER | "(" expr ")"
+//
+static ASTNode *parse_factor() {
+
+    // number
+    if (current.type == TOKEN_NUMBER) {
+        int value = atoi(current.start);
+        advance();
+        return new_number_node(value);
+    }
+
+    // string
+    if (current.type == TOKEN_STRING) {
+        char buffer[256] = {0};
+        strncpy(buffer, current.start + 1, current.length - 2);
+        advance();
+        return new_string_node(buffer);
+    }
+
+    // identifier
+    if (current.type == TOKEN_IDENTIFIER) {
+        char name[128] = {0};
+        strncpy(name, current.start, current.length);
+        advance();
+        return new_identifier_node(name);
+    }
+
+    // ( expr )
+    if (match(TOKEN_LEFT_PAREN)) {
+        ASTNode *node = parse_expression();
+        expect(TOKEN_RIGHT_PAREN, "Missing ')'");
+        return node;
+    }
+
+    printf("L Error: Unexpected token\n");
+    return NULL;
+}
+
+./src/error.c
+--- FILE: ./src/error.c ---
+#include <stdio.h>
+#include <string.h>
+#include "../include/error.h"
+
+// --------------------------------------------
+// UNDERLINE ERROR LOCATION
+// --------------------------------------------
+void chakra_underline(const char *source, Token token) {
+
+    printf("\n    %s\n    ", source);
+
+    for (int i = 1; i < token.column; i++)
+        printf(" ");
+
+    printf("^\n");
+}
+
+
+// --------------------------------------------
+// PRINT CHAKRA ERROR MESSAGE
+// --------------------------------------------
+void chakra_error(Token token, const char *message) {
+
+    printf("\n❌ Chakra Syntax Error (Line %d, Col %d)\n", 
+           token.line, token.column);
+
+    printf("👉 %s\n", message);
+}
+
+./src/main.c
+--- FILE: ./src/main.c ---
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "../include/interpreter.h"
+#include "../include/parser.h"
+#include "../include/env.h"
+
+// Global Environment (variables persist)
+Env *GLOBAL_ENV;
+
+int main() {
+
+    GLOBAL_ENV = new_env();
+
+    char line[256];
+
+    printf("ShrijiLang Interactive Shell\n");
+    printf("Type 'exit' to quit.\n\n");
+
+    while (1) {
+
+        printf("Shiri> ");   // ❤️ Pretty Prompt
+
+        if (!fgets(line, sizeof(line), stdin)) {
+            printf("\n");
+            break;
+        }
+
+        // Remove trailing newline
+        line[strcspn(line, "\n")] = 0;
+
+        // Exit command
+        if (strcmp(line, "exit") == 0) {
+            printf("Bye Shiri 💛\n");
+            break;
+        }
+
+        // Skip empty input
+        if (strlen(line) == 0) {
+            printf("❌ Error: Empty input\n\n");
+            continue;
+        }
+
+        // Parse → AST
+        ASTNode *root = parse_program(line);
+
+        // If parse failed → skip safely
+        if (root == NULL) {
+            printf("❌ Skipping evaluation due to previous error\n\n");
+            continue;
+        }
+
+        // Evaluate AST
+        int result = eval(root, GLOBAL_ENV);
+
+        // Output result
+        printf("=> %d\n\n", result);
+    }
+
+    return 0;
+}
+
+./src/ast.c
+--- FILE: ./src/ast.c ---
+#include <stdio.h>
+#include <string.h>
+#include "../include/ast.h"
+#include <stdlib.h>
+// ---------------------------------------------------
+// Helper to make safe string copies
+// ---------------------------------------------------
+static void safe_copy(char *dest, const char *src, int max) {
+    if (!src) {
+        dest[0] = '\0';
+        return;
+    }
+    strncpy(dest, src, max - 1);
+    dest[max - 1] = '\0';
+}
+
+
+// ---------------------------------------------------
+// NUMBER NODE
+// ---------------------------------------------------
+ASTNode *new_number_node(int value) {
+    ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+    if (!node) return NULL;
+
+    node->type = AST_NUMBER;
+    node->number_value = value;
+    node->name[0] = '\0';
+    node->string_value[0] = '\0';
+    node->left = NULL;
+    node->right = NULL;
+    node->value = NULL;
+    node->op[0] = '\0';
+
+    return node;
+}
+
+
+// ---------------------------------------------------
+// IDENTIFIER NODE
+// ---------------------------------------------------
+ASTNode *new_identifier_node(const char *name) {
+    ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+    if (!node) return NULL;
+
+    node->type = AST_IDENTIFIER;
+    node->number_value = 0;
+    safe_copy(node->name, name, 128);
+    node->string_value[0] = '\0';
+    node->left = NULL;
+    node->right = NULL;
+    node->value = NULL;
+    node->op[0] = '\0';
+
+    return node;
+}
+
+
+// ---------------------------------------------------
+// STRING NODE  ( "hello" )
+// ---------------------------------------------------
+ASTNode *new_string_node(const char *str) {
+    ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+    if (!node) return NULL;
+
+    node->type = AST_STRING;
+    node->number_value = 0;
+    node->name[0] = '\0';
+    safe_copy(node->string_value, str, 256);
+
+    node->left = NULL;
+    node->right = NULL;
+    node->value = NULL;
+    node->op[0] = '\0';
+
+    return node;
+}
+
+
+// ---------------------------------------------------
+// BINARY NODE  ( left op right )
+// ---------------------------------------------------
+ASTNode *new_binary_node(char op, ASTNode *left, ASTNode *right) {
+    ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+    if (!node) return NULL;
+
+    node->type = AST_BINARY;
+    node->number_value = 0;
+    node->name[0] = '\0';
+    node->string_value[0] = '\0';
+
+    node->op[0] = op;
+    node->op[1] = '\0';
+
+    node->left = left;
+    node->right = right;
+    node->value = NULL;
+
+    return node;
+}
+
+
+// ---------------------------------------------------
+// ASSIGNMENT NODE  ( mavi x = expr )
+// ---------------------------------------------------
+ASTNode *new_assignment_node(const char *name, ASTNode *value) {
+    ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+    if (!node) return NULL;
+
+    node->type = AST_ASSIGNMENT;
+    node->number_value = 0;
+    safe_copy(node->name, name, 128);
+    node->string_value[0] = '\0';
+
+    node->left = NULL;
+    node->right = NULL;
+    node->value = value;
+    node->op[0] = '\0';
+
+    return node;
+}
+
+
+// ---------------------------------------------------
+// SAKHI NODE  ( sakhi "message" )
+// ---------------------------------------------------
+ASTNode *new_sakhi_node(ASTNode *message) {
+    ASTNode *node = (ASTNode *)malloc(sizeof(ASTNode));
+    if (!node) return NULL;
+
+    node->type = AST_SAKHI;
+    node->number_value = 0;
+    node->name[0] = '\0';
+    node->string_value[0] = '\0';
+
+    node->left = NULL;
+    node->right = NULL;
+    node->value = message;   // message is AST_STRING
+
+    node->op[0] = '\0';
+
+    return node;
+}
+
+// ---------------------------------------------------
+// NIYU NODE  ( niyu "message" )
+// ---------------------------------------------------
+ASTNode *new_niyu_node(ASTNode *message) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = AST_NIYU;
+    node->value = message;
+    return node;
+}
+#include <stdlib.h>
+
+void ast_free(ASTNode *node) {
+    if (node == NULL) return;
+
+    if (node->left) ast_free(node->left);
+    if (node->right) ast_free(node->right);
+    if (node->value) ast_free(node->value);
+
+    free(node);
+}
+
+./src/env.c
+--- FILE: ./src/env.c ---
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "../include/env.h"
+
+Env *new_env() {
+    Env *e = malloc(sizeof(Env));
+    e->count = 0;
+    return e;
+}
+
+void env_set(Env *env, const char *name, int value) {
+    // check if exists
+    for (int i = 0; i < env->count; i++) {
+        if (strcmp(env->vars[i].name, name) == 0) {
+            env->vars[i].value = value;
+            return;
+        }
+    }
+
+    // new variable
+    strcpy(env->vars[env->count].name, name);
+    env->vars[env->count].value = value;
+    env->count++;
+}
+
+int env_get(Env *env, const char *name) {
+    for (int i = 0; i < env->count; i++) {
+        if (strcmp(env->vars[i].name, name) == 0) {
+            return env->vars[i].value;
+        }
+    }
+
+    printf("Runtime Error: variable '%s' not found.\n", name);
+    exit(1);
+}
+
+./niyu/niyu_observation.c
+--- FILE: ./niyu/niyu_observation.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+// -----------------------------------------
+// Detect hesitation patterns
+// -----------------------------------------
+int detect_hesitation(const char *msg) {
+    return (
+        strstr(msg, "maybe") ||
+        strstr(msg, "not sure") ||
+        strstr(msg, "I feel")
+    ) ? 1 : 0;
+}
+
+// -----------------------------------------
+// Detect negative emotional tone
+// -----------------------------------------
+int detect_negative(const char *msg) {
+    return (
+        strstr(msg, "stuck") ||
+        strstr(msg, "can't") ||
+        strstr(msg, "nothing")
+    ) ? 1 : 0;
+}
+
+// -----------------------------------------
+// Detect logical contradiction marker
+// -----------------------------------------
+int detect_contradiction(const char *msg) {
+    return (strstr(msg, "but")) ? 1 : 0;
+}
+
+// -----------------------------------------
+// Main Observation Layer
+// -----------------------------------------
+void niyu_observe(const char *msg) {
+
+    printf("[Obs👁️] Observing...\n");
+
+    if (detect_hesitation(msg))
+        printf("[Obs👁️] Pattern: Hesitation detected.\n");
+
+    if (detect_negative(msg))
+        printf("[Obs👁️] Emotional shift: Negative tone detected.\n");
+
+    if (detect_contradiction(msg))
+        printf("[Obs👁️] Logic Notice: Possible contradiction in statement.\n");
+
+    // Default intent scanning
+    if (strstr(msg, "want"))
+        printf("[Obs👁️] Intent: User wants improvement or change.\n");
+
+    // If nothing detected
+    if (!detect_hesitation(msg) &&
+        !detect_negative(msg) &&
+        !detect_contradiction(msg))
+    {
+        printf("[Obs👁️] Observation: Message stable and logical.\n");
+    }
+}
+
+./niyu/niyu_logic.c
+--- FILE: ./niyu/niyu_logic.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+void niyu_logic_process(const char *msg) {
+
+    printf("[Logic🧠] Processing...\n");
+
+    // 1. Blind belief detection
+    if (strstr(msg, "believe") || strstr(msg, "faith")) {
+        printf("[Logic🧠] Belief detected → Evidence missing.\n");
+    }
+
+    // 2. Contradiction detection
+    if (strstr(msg, "want") && strstr(msg, "nothing")) {
+        printf("[Logic🧠] Contradiction found → Want ≠ Action.\n");
+    }
+
+    // 3. Confusion keyword
+    if (strstr(msg, "lost")) {
+        printf("[Logic🧠] Clarifying question: Lost in mind, emotion, or direction?\n");
+    }
+
+    // 4. Default logic output
+    printf("[Logic🧠] Analysis complete.\n");
+}
+
+./niyu/niyu_bridge.c
+--- FILE: ./niyu/niyu_bridge.c ---
+#include "niyu.h"
+#include <stdio.h>
+
+void niyu_bridge(const char *msg) {
+
+    printf("[Niyu⚡] %s\n", msg);
+
+    // 1. Memory Engine
+    niyu_memory_store(msg);
+
+    // 2. Emotion Engine
+    niyu_emotion_process(msg);
+
+    // 3. Logic Engine
+    niyu_logic_process(msg);
+
+    niyu_observe(msg);
+
+    niyu_deduce(msg);
+
+    niyu_induce(msg); 
+
+    niyu_resolve(msg);
+
+    niyu_synthesis(msg);
+
+    niyu_meta_learn(msg);
+
+    // NEW: Self-Consistency Check
+    niyu_consistency(msg);
+
+    // 4. Core Engine (final step)
+    printf("[Core🧠] Logic executed.\n");
+}
+
+./niyu/niyu_memory.c
+--- FILE: ./niyu/niyu_memory.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+static char last_messages[5][256];
+static int msg_index = 0;
+static int stored_count = 0;  // kitne msg store hue
+
+void niyu_memory_store(const char *msg) {
+
+    printf("[Memory📚] Saved: %s\n", msg);
+
+    // Repetition check
+    for (int i = 0; i < stored_count; i++) {
+        if (strcmp(last_messages[i], msg) == 0) {
+            printf("[Memory📚] Pattern: Repeated thought detected.\n");
+            break;
+        }
+    }
+
+    // Save message
+    strncpy(last_messages[msg_index], msg, 255);
+    last_messages[msg_index][255] = '\0';
+
+    // Update counters safely
+    msg_index = (msg_index + 1) % 5;
+    if (stored_count < 5) stored_count++;
+
+    // Stress detection
+    if (strstr(msg, "can't") || strstr(msg, "not possible") || strstr(msg, "stuck")) {
+        printf("[Memory📚] Note: Negative loop found → Redirecting to logic.\n");
+    }
+
+    // Goal detection
+    if (strstr(msg, "want") || strstr(msg, "goal") || strstr(msg, "wish")) {
+        printf("[Memory📚] Tracking goals: Logged.\n");
+    }
+}
+
+// ----------- FIXED FUNCTION (100% SAFE) ------------
+const char* niyu_last_message() {
+
+    if (stored_count == 0)
+        return NULL;
+
+    int index = (msg_index - 1 + 5) % 5;
+    return last_messages[index];
+}
+
+./niyu/niyu_deduction.c
+--- FILE: ./niyu/niyu_deduction.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+// A → B pattern detect
+int has_implication(const char *msg) {
+    return strstr(msg, "so") || strstr(msg, "therefore") || strstr(msg, "because");
+}
+
+// Check if message contains a clear cause → effect pattern
+void niyu_deduce(const char *msg) {
+
+    printf("[Deduce🔍] Running deductive reasoning...\n");
+
+    if (has_implication(msg)) {
+        printf("[Deduce🔍] Implication detected → User is drawing a logical conclusion.\n");
+
+        // Basic rule: If message contains contradiction inside implication
+        if (strstr(msg, "but")) {
+            printf("[Deduce🔍] Warning: Contradiction inside deduction.\n");
+        }
+
+        printf("[Deduce🔍] Deduction processed.\n");
+    }
+    else {
+        printf("[Deduce🔍] No deductive structure found.\n");
+    }
+}
+
+./niyu/niyu_resolve.c
+--- FILE: ./niyu/niyu_resolve.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+// Small helper to convert strstr result into clean 0/1 output
+int contains(const char *msg, const char *word) {
+    return strstr(msg, word) != NULL;
+}
+
+int has_want(const char *msg) {
+    return contains(msg, "want");
+}
+
+int has_no_action(const char *msg) {
+    return contains(msg, "do nothing") || contains(msg, "nothing");
+}
+
+int has_belief(const char *msg) {
+    return contains(msg, "believe") || contains(msg, "think");
+}
+
+int has_improve(const char *msg) {
+    return contains(msg, "improve") || contains(msg, "progress");
+}
+
+// ---------------------------------------------------------
+// MAIN RESOLUTION LOGIC
+// ---------------------------------------------------------
+void niyu_resolve(const char *msg) {
+
+    printf("[Resolve⚖️] Evaluating contradictions...\n");
+
+    if (has_want(msg) && has_no_action(msg)) {
+        printf("[Resolve⚖️] Contradiction: Desire exists but action is missing.\n");
+        printf("[Resolve⚖️] Logical Result: Outcome cannot match desire.\n");
+        return;
+    }
+
+    if (has_belief(msg) && !has_improve(msg)) {
+        printf("[Resolve⚖️] Notice: Belief detected without supporting evidence.\n");
+        printf("[Resolve⚖️] Logical Result: Belief alone cannot guarantee outcome.\n");
+        return;
+    }
+
+    if (has_improve(msg) && contains(msg, "failed")) {
+        printf("[Resolve⚖️] Mixed pattern: Failure + improvement.\n");
+        printf("[Resolve⚖️] Logical Result: Improvement reduces effect of past failure.\n");
+        return;
+    }
+
+    printf("[Resolve⚖️] No contradiction found.\n");
+}
+
+./niyu/niyu_meta.c
+--- FILE: ./niyu/niyu_meta.c ---
+#include "niyu.h"
+#include <string.h>
+#include <stdio.h>
+
+static int meta_score = 0;      // Tracks improvement
+static int contradiction_hits = 0;
+static int negative_hits = 0;
+static int positive_hits = 0;
+
+// Learn from contradictions
+void meta_learn_contradiction(const char *msg) {
+    contradiction_hits++;
+    printf("[Meta📊] Learning: Contradiction count = %d\n", contradiction_hits);
+
+    if (contradiction_hits > 3) {
+        printf("[Meta📈] Insight: User struggles with internal conflict.\n");
+        meta_score++;
+    }
+}
+
+// Learn from negativity
+void meta_learn_negative(const char *msg) {
+    negative_hits++;
+    printf("[Meta📉] Learning: Negative count = %d\n", negative_hits);
+
+    if (negative_hits > 5) {
+        printf("[Meta🧠] Insight: User often loops in negative thoughts.\n");
+        meta_score++;
+    }
+}
+
+// Learn from positive improvements
+void meta_learn_positive(const char *msg) {
+    positive_hits++;
+    printf("[Meta📈] Learning: Positive count = %d\n", positive_hits);
+
+    if (positive_hits > 5) {
+        printf("[Meta✨] Insight: User improvement trend detected.\n");
+        meta_score++;
+    }
+}
+
+// Final synthesis of meta-learning
+void niyu_meta_learn(const char *msg) {
+
+    printf("[Meta🧬] Meta-Learning active...\n");
+
+    if (strstr(msg, "but"))
+        meta_learn_contradiction(msg);
+
+    if (strstr(msg, "fail") || strstr(msg, "can't") || strstr(msg, "stuck"))
+        meta_learn_negative(msg);
+
+    if (strstr(msg, "improve") || strstr(msg, "progress"))
+        meta_learn_positive(msg);
+
+    printf("[Meta🧪] Current Meta-Score: %d\n", meta_score);
+
+    if (meta_score >= 5) {
+        printf("[Meta🌟] Upgrade: Niyu’s internal reasoning improved.\n");
+    }
+}
+
+./niyu/niyu_synthesis.c
+--- FILE: ./niyu/niyu_synthesis.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+// Helper for quick scanning
+int contains_word(const char *msg, const char *word) {
+    return strstr(msg, word) != NULL;
+}
+
+// --------------------------------------------------------------
+//   SYNTHESIS ENGINE
+//   - Combines LOGIC + EMOTION + OBSERVATION + PATTERNS
+//   - Gives FINAL INTERPRETATION of user's mental state
+// --------------------------------------------------------------
+void niyu_synthesis(const char *msg) {
+
+    printf("[Synth🧬] Synthesizing understanding...\n");
+
+    int has_negative = contains_word(msg, "fail") ||
+                       contains_word(msg, "stuck") ||
+                       contains_word(msg, "can't");
+
+    int has_positive = contains_word(msg, "improve") ||
+                       contains_word(msg, "progress") ||
+                       contains_word(msg, "better");
+
+    int contradiction = contains_word(msg, "but");
+
+    int desire = contains_word(msg, "want") ||
+                 contains_word(msg, "wish") ||
+                 contains_word(msg, "hope");
+
+    int no_action = contains_word(msg, "nothing") ||
+                    contains_word(msg, "do nothing");
+
+    // ------------------------------------------------------
+    // FINAL SYNTHESIS LOGIC
+    // ------------------------------------------------------
+
+    // Case 1 — Mixed emotional message
+    if (has_negative && has_positive) {
+        printf("[Synth🧬] Mixed emotional state detected.\n");
+        printf("[Synth🧬] Interpretation: User is improving but still fighting doubt.\n");
+        return;
+    }
+
+    // Case 2 — Desire but no action
+    if (desire && no_action) {
+        printf("[Synth🧬] Desire without action detected.\n");
+        printf("[Synth🧬] Interpretation: User wants change but is stuck in inaction.\n");
+        return;
+    }
+
+    // Case 3 — Strong contradiction
+    if (contradiction) {
+        printf("[Synth🧬] Contradiction present → Message needs resolution.\n");
+        printf("[Synth🧬] Interpretation: User holds two opposing thoughts.\n");
+        return;
+    }
+
+    // Case 4 — Pure negative
+    if (has_negative && !has_positive) {
+        printf("[Synth🧬] Negative-only pattern detected.\n");
+        printf("[Synth🧬] Interpretation: User is feeling low or discouraged.\n");
+        return;
+    }
+
+    // Case 5 — Pure positive
+    if (has_positive && !has_negative) {
+        printf("[Synth🧬] Positive growth signal detected.\n");
+        printf("[Synth🧬] Interpretation: User is genuinely improving.\n");
+        return;
+    }
+
+    // Case 6 — Neutral
+    printf("[Synth🧬] Stable message.\n");
+    printf("[Synth🧬] Interpretation: No emotional or logical conflict detected.\n");
+}
+
+./niyu/niyu_consistency.c
+--- FILE: ./niyu/niyu_consistency.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+// --------------------------------------
+//  LAST MESSAGE MEMORY (GLOBAL VARIABLE)
+// --------------------------------------
+extern const char *niyu_last_message_global;  
+
+// --------------------------------------------------
+// Check if new message contradicts last remembered message
+// --------------------------------------------------
+int internal_contradiction(const char *msg, const char *last_msg) {
+
+    if (!last_msg) return 0;
+
+    // Case 1: User improved after failing
+    if (strstr(msg, "improve") && strstr(last_msg, "failed"))
+        return 1;
+
+    // Case 2: User says cannot even though earlier they wanted something
+    if (strstr(msg, "cannot") && strstr(last_msg, "want"))
+        return 1;
+
+    // Case 3: User expects success despite no action (expanded rule)
+    if ((strstr(msg, "will succeed") || strstr(msg, "I will succeed")) &&
+        strstr(last_msg, "do nothing"))
+        return 1;
+
+    return 0;
+}
+
+// --------------------------------------------------
+// SELF-CONSISTENCY ENGINE
+// --------------------------------------------------
+void niyu_consistency(const char *msg) {
+
+    printf("[Self🔁] Checking internal consistency...\n");
+
+    const char *last = niyu_last_message_global;
+
+    if (!last) {
+        printf("[Self🔁] No previous message → Cannot compare.\n");
+        return;
+    }
+
+    if (internal_contradiction(msg, last)) {
+        printf("[Self⚠️] Inconsistency detected with previous statement.\n");
+        printf("[Self⚠️] Your reasoning does not match your earlier message.\n");
+        return;
+    }
+
+    printf("[Self✔️] Statement consistent with previous reasoning.\n");
+}
+
+./niyu/niyu_emotion.c
+--- FILE: ./niyu/niyu_emotion.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+void niyu_emotion_process(const char *msg) {
+
+    printf("[Emotion🧊] Analyzing emotional tone...\n");
+
+    // 1. Sadness detection
+    if (strstr(msg, "sad") || strstr(msg, "down") || strstr(msg, "hurt")) {
+        printf("[Emotion🧊] Noted: Emotional dip detected. Logic remains unaffected.\n");
+    }
+
+    // 2. Fear or doubt detection
+    if (strstr(msg, "scared") || strstr(msg, "fear") || strstr(msg, "doubt")) {
+        printf("[Emotion🧊] Acknowledged: Fear reduces clarity. Logic will compensate.\n");
+    }
+
+    // 3. Anger detection
+    if (strstr(msg, "angry") || strstr(msg, "rage")) {
+        printf("[Emotion🧊] Observed: Anger detected. Cooling perspective applied.\n");
+    }
+
+    // 4. Overconfidence detection
+    if (strstr(msg, "sure") || strstr(msg, "guarantee") || strstr(msg, "100%")) {
+        printf("[Emotion🧊] Note: Overconfidence identified. Re-check assumptions.\n");
+    }
+
+    // 5. Default
+    printf("[Emotion🧊] Emotional scan complete.\n");
+}
+
+./niyu/niyu_induction.c
+--- FILE: ./niyu/niyu_induction.c ---
+#include "niyu.h"
+#include <stdio.h>
+#include <string.h>
+
+// Counters to track patterns
+static int count_negative = 0;
+static int count_positive = 0;
+
+// -------------------------------------------
+// NEGATIVE CHECK
+// -------------------------------------------
+int is_negative_event(const char *msg) {
+    return strstr(msg, "fail") ||
+           strstr(msg, "stuck") ||
+           strstr(msg, "can't") ||
+           strstr(msg, "nothing");
+}
+
+// -------------------------------------------
+// POSITIVE CHECK (Improved & Fix Applied)
+// -------------------------------------------
+int is_positive_event(const char *msg) {
+    return strstr(msg, "improve") ||
+           strstr(msg, "improving") || 
+           strstr(msg, "progress") ||
+           strstr(msg, "better") ||
+           strstr(msg, "learning");
+}
+
+// -------------------------------------------
+// MAIN INDUCTIVE ENGINE
+// -------------------------------------------
+void niyu_induce(const char *msg) {
+
+    printf("[Induce🔮] Inductive reasoning active...\n");
+
+    int neg_flag = is_negative_event(msg);
+    int pos_flag = is_positive_event(msg);
+
+    // 1. Count patterns
+    if (neg_flag) {
+        count_negative++;
+        printf("[Induce🔮] Negative pattern +1 (Total: %d)\n", count_negative);
+    }
+
+    if (pos_flag) {
+        count_positive++;
+        printf("[Induce🔮] Positive pattern +1 (Total: %d)\n", count_positive);
+    }
+
+    // 2. Repeated negative events
+    if (count_negative >= 2) {
+        printf("[Induce🔮] Pattern: Repeated negative events → Likely future issue.\n");
+    }
+
+    // 3. Repeated positive events
+    if (count_positive >= 2) {
+        printf("[Induce🔮] Pattern: Improvement trend detected.\n");
+    }
+
+    // 4. Mixed pattern detection
+    if (count_negative >= 1 && count_positive >= 1) {
+        printf("[Induce🔮] Mixed pattern: User is fluctuating between negative and positive states.\n");
+    }
+
+    // 5. No informative pattern
+    if (!neg_flag && !pos_flag) {
+        printf("[Induce🔮] No pattern detected.\n");
+    }
+}
+

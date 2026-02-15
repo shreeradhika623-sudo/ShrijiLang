@@ -1,0 +1,15 @@
+bolo "VALUE TYPE STEP 3.3 TEST START"
+
+# ✅ correct declarations
+mavi a = 10
+mavi b = 20
+
+# ✅ number + number allowed
+mavi c = a + b
+bolo c
+
+# ❌ type mismatch (HARD STOP expected)
+mavi s = "abc"
+mavi x = a + s
+
+bolo "VALUE TYPE STEP 3.3 TEST END"

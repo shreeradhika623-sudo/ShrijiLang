@@ -1,0 +1,8 @@
+bolo "start"
+
+kaam add(a, b) {
+    wapas a + b
+}
+
+mavi x = add(2, 3)
+bolo x

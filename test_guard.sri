@@ -1,0 +1,6 @@
+mavi x = 0
+
+agar 1 {
+    x = x + 1
+    agar 1 { }
+}

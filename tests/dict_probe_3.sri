@@ -1,0 +1,11 @@
+bolo "DICT PROBE 3 START"
+
+mavi d = {"a": 10}
+
+bolo d[10]        # ❌ key must be string
+bolo "SHOULD NOT REACH"
+
+d = 5
+d["a"] = 10      # ❌ invalid target
+
+bolo "DICT PROBE 3 END"

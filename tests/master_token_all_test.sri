@@ -1,0 +1,75 @@
+# ==================================================
+# SHRIJILANG – MASTER ALL TOKEN TEST (SAFE MODE)
+# ==================================================
+
+# ---------- PART A: EXECUTABLE CORE ----------
+
+mavi a = 10
+mavi b = 20
+
+bolo "Start master test"
+
+agar a < b {
+    bolo "a chhota hai b se"
+} warna {
+    bolo "a bada ya barabar hai b ke"
+}
+
+mavi result = 0
+
+agar b > a {
+    result = 1
+} warna {
+    result = 0
+}
+
+bolo "Core control-flow complete"
+
+
+# ---------- PART B: TOKEN PRESENCE TEST ----------
+# (Lexer + token system test only)
+# Ye sab intentionally COMMENTED hain
+# Jab grammar add hogi, tab uncomment honge
+
+# ---- Logical Operators ----
+# agar a < b && b > 5 {
+#     bolo "logical AND"
+# }
+
+# ---- Increment / Decrement ----
+# a++
+# b--
+
+# ---- Ternary ----
+# mavi t = (a < b) ? 1 : 0
+
+# ---- Loops ----
+# jabtak a < 100 {
+#     a = a + 1
+# }
+
+# ---- Functions ----
+# kaam add(x, y) {
+#     wapas x + y
+# }
+
+# ---- Data Structures ----
+# mavi list = [1, 2, 3]
+# mavi dict = { "a": 1, "b": 2 }
+
+# ---- Exception ----
+# try {
+#     bolo "try block"
+# } catch {
+#     bolo "catch block"
+# }
+
+# ---- Async / System / AI ----
+# async kaam worker() { }
+# await worker()
+# sakhi "hello"
+# mira "teach"
+# niyu "reason"
+# samay now
+
+bolo "Master token test END"

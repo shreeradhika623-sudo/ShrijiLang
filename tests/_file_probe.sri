@@ -1,0 +1,12 @@
+bolo "FILE PROBE START"
+
+mavi f = file_open("probe.txt")
+bolo f
+
+mavi w = file_write("probe.txt", "hello")
+bolo w
+
+mavi r = file_read("probe.txt")
+bolo r
+
+bolo "FILE PROBE END"

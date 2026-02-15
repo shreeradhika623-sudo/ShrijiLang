@@ -1,0 +1,33 @@
+mavi a = 10
+mavi b = 5
+a
+b
+
+agar a > b {
+    a
+} warna {
+    b
+}
+
+a + b
+a * b
+(a + b) * 2
+
+mavi i = 0
+jabtak i < 20000 {
+    i = i + 1
+}
+i
+
+mavi x = 1
+jabtak x < 10 {
+    mavi y = x + 1
+    x = y
+}
+x
+
+1
+2 + 3
+(x + a)
+
+9999

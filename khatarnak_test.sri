@@ -1,0 +1,16 @@
+bolo "START FILE MODE"
+
+mavi x = 10
+mavi y = 20
+
+bolo x
+bolo y
+bolo x + y
+
+agar x < y {
+    bolo "X chhota hai Y se"
+} warna {
+    bolo "X bada hai Y se"
+}
+
+bolo "END FILE MODE"

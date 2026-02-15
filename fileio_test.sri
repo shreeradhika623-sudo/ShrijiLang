@@ -1,0 +1,12 @@
+bolo "=== FILE IO TEST START ==="
+
+mavi ok1 = likho("a.txt", "Radha Rani\nShrijiLang Zindabad\n")
+bolo ok1
+
+mavi ok2 = jodo("a.txt", "Line-2\n")
+bolo ok2
+
+mavi data = padho("a.txt")
+bolo data
+
+bolo "=== FILE IO TEST END ==="

@@ -1,0 +1,109 @@
+# ─────────────────────────────────────────────
+# SHOPLESS SYSTEM — SHRIJILANG
+# No physical shop, only logic
+# ─────────────────────────────────────────────
+
+# inventory (dictionary)
+mavi inventory = {
+    "rice": 50,
+    "oil": 20,
+    "sugar": 30
+}
+
+# prices
+mavi price = {
+    "rice": 60,
+    "oil": 150,
+    "sugar": 45
+}
+
+# user cart
+mavi cart = {}
+
+# function: add item to cart
+kaam add_to_cart(item, qty) {
+
+    agar nahi inventory[item] > 0 {
+        bolo "Item available nahi hai"
+        wapas 0
+    }
+
+    agar qty > inventory[item] {
+        bolo "Stock kam hai"
+        wapas 0
+    }
+
+    # add / update cart
+    agar cart[item] {
+        cart[item] = cart[item] + qty
+    } warna {
+        cart[item] = qty
+    }
+
+    # reduce inventory
+    inventory[item] = inventory[item] - qty
+
+    bolo "Item cart me add ho gaya"
+    wapas 1
+}
+
+# function: calculate total
+kaam calculate_total() {
+
+    mavi total = 0
+
+    mavi keys = ["rice", "oil", "sugar"]
+    mavi i = 0
+
+    jabtak i < 3 {
+
+        mavi k = keys[i]
+
+        agar cart[k] {
+            total = total + (cart[k] * price[k])
+        }
+
+        i++
+    }
+
+    wapas total
+}
+
+# function: checkout
+kaam checkout(balance) {
+
+    mavi bill = calculate_total()
+
+    agar bill == 0 {
+        bolo "Cart empty hai"
+        wapas 0
+    }
+
+    agar balance < bill {
+        bolo "Balance kam hai"
+        wapas 0
+    }
+
+    balance = balance - bill
+
+    bolo "Payment successful"
+    bolo bill
+    bolo balance
+
+    wapas balance
+}
+
+# ─────────────────────────────────────────────
+# USER FLOW
+# ─────────────────────────────────────────────
+
+mavi user_balance = 500
+
+add_to_cart("rice", 2)
+add_to_cart("oil", 1)
+add_to_cart("sugar", 3)
+
+user_balance = checkout(user_balance)
+
+bolo "Remaining balance:"
+bolo user_balance

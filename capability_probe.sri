@@ -1,0 +1,25 @@
+bolo "START"
+mavi x = 5
+mavi y = 10
+mavi z = x + y
+bolo z
+agar z > 10 {
+bolo "z > 10"
+}
+mavi i = 0
+jabtak i < 5 {
+bolo i
+i = i + 1
+}
+kaam add(a,b) {
+wapas a + b
+}
+mavi r = add(3,4)
+bolo r
+agar r == 7 {
+jabtak r < 10 {
+bolo r
+r = r + 1
+}
+}
+bolo "END"

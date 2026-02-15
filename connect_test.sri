@@ -1,0 +1,52 @@
+bolo "=== CONNECT TEST START ==="
+
+mavi x = 10
+mavi y = 20
+bolo "x+y = "
+bolo x + y
+
+bolo "---- IF TEST ----"
+agar x < y {
+    bolo "x < y OK"
+}
+
+bolo "---- WHILE TEST ----"
+mavi i = 0
+jabtak i < 3 {
+    bolo "i = "
+    bolo i
+    i = i + 1
+}
+
+bolo "---- BREAK TEST ----"
+mavi j = 0
+jabtak j < 10 {
+    agar j == 4 {
+        bolo "break at 4"
+        break
+    }
+    j = j + 1
+}
+
+bolo "---- CONTINUE TEST ----"
+mavi k = 0
+jabtak k < 6 {
+    k = k + 1
+    agar k == 3 {
+        bolo "skip 3"
+        continue
+    }
+    bolo "k = "
+    bolo k
+}
+
+bolo "---- FUNCTION TEST ----"
+kaam add(a, b) {
+    return a + b
+}
+
+mavi r = add(5, 7)
+bolo "add(5,7) = "
+bolo r
+
+bolo "=== CONNECT TEST END ==="

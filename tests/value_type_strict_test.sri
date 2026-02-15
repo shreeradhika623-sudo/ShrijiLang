@@ -1,0 +1,14 @@
+bolo "VALUE TYPE STRICT TEST START"
+
+# ✅ valid number operations
+mavi a = 10
+mavi b = 20
+mavi c = a + b
+bolo c
+
+# ❌ type mismatch (number + string)
+mavi x = 10
+mavi y = "abc"
+mavi z = x + y
+
+bolo "VALUE TYPE STRICT TEST END"

@@ -1,0 +1,6 @@
+mavi x = 0
+jabtak true {
+    aaradhya x
+    rukja
+    aaradhya 999   # yeh kabhi print nahi hona chahiye
+}

@@ -1,0 +1,43 @@
+bolo "=== REAL HARD QUESTION START ==="
+
+mavi i = 1
+mavi mode = 0
+mavi count1 = 0
+mavi count2 = 0
+
+jabtak (i <= 50) {
+
+    agar (i % 7 == 0) {
+        mode = 1
+    } warna {
+        agar (i % 11 == 0) {
+            mode = 2
+        }
+    }
+
+    agar (mode == 1) {
+        bolo i
+        count1 = count1 + 1
+    }
+
+    agar (mode == 2) {
+        bolo i * i
+        count2 = count2 + 1
+    }
+
+    i = i + 1
+}
+
+bolo "MODE1 COUNT:"
+bolo count1
+
+bolo "MODE2 COUNT:"
+bolo count2
+
+agar (count1 > count2) {
+    bolo "MODE1 DOMINATES"
+} warna {
+    bolo "MODE2 DOMINATES"
+}
+
+bolo "=== REAL HARD QUESTION END ==="

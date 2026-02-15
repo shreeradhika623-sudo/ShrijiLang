@@ -1,0 +1,111 @@
+mavi a = 3
+mavi b = 5
+mavi c = 7
+mavi d = 11
+mavi e = 13
+mavi f = 17
+
+mavi p1 = a * b
+mavi p2 = c * d
+mavi p3 = e * f
+
+mavi s1 = p1 + p2
+mavi s2 = p3 + s1
+
+mavi x1 = (a + b + c) * (d - a)
+mavi x2 = (e + f) * (b + c)
+mavi x3 = (x1 + x2) / a
+
+mavi t1 = a < b
+mavi t2 = b < c
+mavi t3 = c < d
+mavi t4 = d < e
+mavi t5 = e < f
+
+mavi n1 = nahi t1
+mavi n2 = nahi t2
+mavi n3 = nahi t3
+
+agar t1 {
+    mavi l1 = s1 + x1
+
+    agar t2 {
+        mavi l2 = l1 + x2
+
+        agar t3 {
+            mavi l3 = (l2 + s2) * a
+
+            agar t4 {
+                mavi l4 = (l3 + p3) / b
+
+                agar t5 {
+                    mavi l5 = (l4 + x3) * c
+                } warna {
+                    mavi l5 = 0
+                }
+
+            } warna {
+                mavi l4 = 0
+                mavi l5 = 0
+            }
+
+        } warna {
+            mavi l3 = 0
+            mavi l4 = 0
+            mavi l5 = 0
+        }
+
+    } warna {
+        mavi l2 = 0
+        mavi l3 = 0
+        mavi l4 = 0
+        mavi l5 = 0
+    }
+
+} warna {
+    mavi l1 = 0
+    mavi l2 = 0
+    mavi l3 = 0
+    mavi l4 = 0
+    mavi l5 = 0
+}
+
+agar nahi (a == b) {
+    mavi z1 = (a + b) * (c + d)
+
+    agar nahi (c == d) {
+        mavi z2 = (z1 + e) * f
+
+        agar nahi (e == f) {
+            mavi z3 = (z2 + s2) / b
+        } warna {
+            mavi z3 = 0
+        }
+
+    } warna {
+        mavi z2 = 0
+        mavi z3 = 0
+    }
+
+} warna {
+    mavi z1 = 0
+    mavi z2 = 0
+    mavi z3 = 0
+}
+
+mavi mega1 = l5 + z3
+mavi mega2 = (mega1 * mega1) / c
+mavi mega3 = (mega2 + s2 + x3) * a
+
+agar mega3 > 10000 {
+    mavi verdict = mega3
+} warna {
+    mavi verdict = 0
+}
+
+mavi sanityA = a
+mavi sanityB = b
+mavi sanityC = c
+mavi sanityD = d
+mavi sanityE = e
+mavi sanityF = f

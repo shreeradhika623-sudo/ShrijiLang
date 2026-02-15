@@ -1,0 +1,7 @@
+mavi i = 1
+mavi sum = 0
+
+jabtak i < 6 {
+    sum = sum + i
+    i = i + 1
+}

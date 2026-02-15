@@ -1,0 +1,23 @@
+# ===============================
+# SHRIJILANG – MASTER TOKEN TEST
+# FINAL SAFE VERSION
+# ===============================
+
+mavi x = 10
+mavi y = 20
+
+agar x < y {
+    bolo "x chhota hai y se"
+} warna {
+    bolo "x bada ya barabar hai y ke"
+}
+
+mavi z = 0
+
+agar x > y {
+    z = 1
+} warna {
+    z = 0
+}
+
+bolo "test khatam"

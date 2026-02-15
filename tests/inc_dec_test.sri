@@ -1,0 +1,26 @@
+bolo "INC / DEC TEST START"
+
+mavi x = 10
+bolo x
+
+bolo ++x        # 11
+bolo x          # 11
+
+bolo x++        # 11
+bolo x          # 12
+
+bolo --x        # 11
+bolo x          # 11
+
+bolo x--        # 11
+bolo x          # 10
+
+mavi y = x++
+bolo y          # 10
+bolo x          # 11
+
+mavi z = ++x
+bolo z          # 12
+bolo x          # 12
+
+bolo "INC / DEC TEST END"

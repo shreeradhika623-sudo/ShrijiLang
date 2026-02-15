@@ -1,0 +1,22 @@
+bolo "🔥 FILE MODE START 🔥"
+
+mavi a = 5
+mavi b = 7
+mavi c = a * b + 3
+
+bolo a
+bolo b
+bolo c
+
+agar c > 30 {
+    bolo "C 30 se bada hai"
+} warna {
+    bolo "C 30 se chhota hai"
+}
+
+jabtak a < 10 {
+    bolo a
+    a = a + 1
+}
+
+bolo "🔥 FILE MODE END 🔥"

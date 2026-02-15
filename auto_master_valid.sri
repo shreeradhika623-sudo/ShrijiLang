@@ -1,0 +1,62 @@
+mavi sum = 0
+mavi i = 1
+mavi j = 2
+mavi flag = 1
+
+agar flag {
+    sum = (10 + 20) * (3 + 1) - 15
+}
+
+agar 1 {
+    i = 1
+    agar i < 150000 {
+        agar i % 2 {
+            sum = sum + i * 3 - 1
+        }
+        agar 1 {
+            agar 1 {
+                sum = sum + 0
+            }
+        }
+        i = i + 1
+        agar 1 { }
+    }
+}
+
+agar 1 {
+    j = 1
+    agar j < 250000 {
+        sum = (sum * 7 + j * 11 - 9) / 3
+        agar sum % 5 {
+            sum = sum + j / 2
+        }
+        j = j + 1
+        agar 1 { }
+    }
+}
+
+mavi a = 1
+mavi b = 2
+mavi c = 3
+mavi d = 4
+
+agar 1 {
+    agar 1 {
+        agar 1 {
+            agar a < 100 {
+                a = a + b * c - d
+                d = d + 1
+            }
+        }
+    }
+}
+
+mavi k = 0
+agar 1 {
+    k = k + 1
+    agar k < 300000 {
+        agar 1 {
+            agar 1 { }
+        }
+    }
+}

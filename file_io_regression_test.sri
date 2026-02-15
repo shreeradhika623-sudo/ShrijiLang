@@ -1,0 +1,73 @@
+bolo "=== FILE I/O REGRESSION TEST START ==="
+
+# --------------------------------------------------
+# 1. basic declarations
+# --------------------------------------------------
+mavi w = 0
+mavi a = 0
+mavi r = ""
+mavi err = 0
+
+# --------------------------------------------------
+# 2. write (overwrite)
+# --------------------------------------------------
+bolo "--- overwrite write ---"
+w = likho("demo.txt", "Radhe Radhe\n")
+bolo w
+
+# --------------------------------------------------
+# 3. append
+# --------------------------------------------------
+bolo "--- append write ---"
+a = jodo("demo.txt", "ShrijiLang zindabad\n")
+bolo a
+
+# --------------------------------------------------
+# 4. read back
+# --------------------------------------------------
+bolo "--- read file ---"
+r = padho("demo.txt")
+bolo r
+
+# --------------------------------------------------
+# 5. overwrite again (reset content)
+# --------------------------------------------------
+bolo "--- overwrite again ---"
+likho("demo.txt", "Fresh Start\n")
+bolo padho("demo.txt")
+
+# --------------------------------------------------
+# 6. error: wrong type (runtime error expected)
+# --------------------------------------------------
+bolo "--- error: wrong argument type ---"
+bolo padho(123)
+
+# --------------------------------------------------
+# 7. error: missing argument (parse error expected)
+# --------------------------------------------------
+bolo "--- error: missing argument ---"
+bolo likho("x.txt")
+
+# --------------------------------------------------
+# 8. error: append wrong type
+# --------------------------------------------------
+bolo "--- error: append wrong type ---"
+err = jodo("x.txt", 99)
+bolo err
+
+# --------------------------------------------------
+# 9. read non-existing file
+# --------------------------------------------------
+bolo "--- error: file not found ---"
+bolo padho("no_such_file.txt")
+
+# --------------------------------------------------
+# 10. multiple operations sanity
+# --------------------------------------------------
+bolo "--- multi-step sanity ---"
+mavi x = likho("multi.txt", "A\n")
+mavi y = jodo("multi.txt", "B\n")
+mavi z = padho("multi.txt")
+bolo z
+
+bolo "=== FILE I/O REGRESSION TEST END ==="

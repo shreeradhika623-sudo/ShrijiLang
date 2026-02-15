@@ -1,0 +1,88 @@
+bolo "=== CONNECT TEST FINAL START ==="
+
+bolo "---- BASIC VARS ----"
+mavi x = 10
+mavi y = 20
+bolo "x = "
+bolo x
+bolo "y = "
+bolo y
+
+bolo "---- ARITH ----"
+mavi sum = x + y
+bolo "x+y = "
+bolo sum
+
+mavi mul = x * y
+bolo "x*y = "
+bolo mul
+
+mavi sub = y - x
+bolo "y-x = "
+bolo sub
+
+bolo "---- IF TEST ----"
+agar x < y {
+    bolo "OK: x < y"
+}
+
+agar x == 10 {
+    bolo "OK: x == 10"
+}
+
+agar y == 10 {
+    bolo "ERROR: y should not be 10"
+}
+
+bolo "---- WHILE LOOP ----"
+mavi i = 0
+jabtak i < 5 {
+    bolo "i = "
+    bolo i
+    i = i + 1
+}
+
+bolo "---- NESTED WHILE ----"
+mavi a = 0
+jabtak a < 3 {
+    mavi b = 0
+    jabtak b < 2 {
+        bolo "a,b = "
+        bolo a
+        bolo b
+        b = b + 1
+    }
+    a = a + 1
+}
+
+bolo "---- FUNCTION TEST: add ----"
+kaam add(p, q) {
+    wapas p + q
+}
+
+mavi r1 = add(5, 7)
+bolo "add(5,7) = "
+bolo r1
+
+bolo "---- FUNCTION TEST: square ----"
+kaam square(n) {
+    wapas n * n
+}
+
+mavi r2 = square(12)
+bolo "square(12) = "
+bolo r2
+
+bolo "---- FUNCTION + LOOP COMBINED ----"
+mavi t = 1
+mavi total = 0
+
+jabtak t <= 5 {
+    total = total + square(t)
+    t = t + 1
+}
+
+bolo "sum(square(1..5)) = "
+bolo total
+
+bolo "=== CONNECT TEST FINAL END ==="

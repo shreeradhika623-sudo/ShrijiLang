@@ -1,0 +1,36 @@
+mavi a = 10
+mavi b = 20
+mavi c = 30
+
+# ---- Upar: bilkul sahi ----
+mavi sum1 = a + b
+mavi sum2 = sum1 + c
+mavi good1 = sum2 * 2
+
+# ---- Beech: jaan-boojh kar shunya avastha ----
+# x kabhi define nahi hua, par grammar sahi hai
+mavi mid1 = x
+mavi mid2 = mid1 + 5
+
+# ---- Thoda aur logic (taaki system continue kare) ----
+mavi check1 = a < b
+mavi check2 = nahi (a == c)
+
+# ---- Neeche: phir se bilkul sahi nested logic ----
+agar check1 {
+    mavi final1 = good1 + mid2
+
+    agar check2 {
+        mavi final2 = final1 + 10
+    } warna {
+        mavi final2 = 0
+    }
+
+} warna {
+    mavi final1 = 0
+    mavi final2 = 0
+}
+
+mavi sanityA = a
+mavi sanityB = b
+mavi sanityC = c

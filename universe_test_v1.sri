@@ -1,0 +1,60 @@
+#────────────────────────────────────────
+# ShrijiLang Master Test V1
+# Covers: mavi, update, agar/warna, jabtak, rukja, math, logic
+# Expected final result: 999
+#────────────────────────────────────────
+
+# 1) Declaration
+mavi a = 10
+mavi b = 3
+
+# 2) Math
+mavi add = a + b
+mavi sub = a - b
+mavi mul = a * b
+mavi div = a / b
+mavi mod = a % b
+
+# 3) Update
+mavi x = 0
+x = x + 5
+x = x + 1
+
+# 4) IF / ELSE testing
+mavi flag = 0
+
+agar x == 6 {
+    flag = 1
+} warna {
+    flag = 0
+}
+
+# 5) NOT testing (nahi)
+mavi n = nahi flag
+
+# 6) WHILE + BREAK
+mavi i = 0
+mavi sum = 0
+
+jabtak i < 50 {
+
+    i = i + 1
+    sum = sum + i
+
+    # break when i reaches 10
+    agar i == 10 {
+        rukja
+    }
+}
+
+# 7) Final result (script output)
+# If everything works correctly, this will end at 999
+mavi result = 0
+
+agar flag == 1 {
+    result = 999
+} warna {
+    result = 111
+}
+
+result

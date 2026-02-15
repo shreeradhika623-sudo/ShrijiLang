@@ -1,0 +1,13 @@
+bolo "TEST-3 START"
+
+kaam f(x) {
+    {
+        mavi x = x + 1
+        bolo x
+    }
+    bolo x
+}
+
+f(10)
+
+bolo "TEST-3 END"

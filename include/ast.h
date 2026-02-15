@@ -1,0 +1,241 @@
+#ifndef AST_H
+#define AST_H
+
+#ifdef SHRIJI_ENABLE_MASTER_TOKENS
+#include "lang/token_master.h"
+#endif
+
+/*──────────────────────────────────────────────────────────────
+ |  SHRIJILANG — ABSTRACT SYNTAX TREE (AST)
+ |
+ |  Used by:
+ |   • Parser
+ |   • Interpreter
+ |   • AI Engines (Sakhi / Niyu / Mira / Kavya / Shiri)
+ |   • Universal Command Engine (sri_*)
+ |   • Future Grammar (block, if, loop, function)
+ *────────────────────────────────────────────────────────────*/
+
+/*──────────────────────────────────────────────────────────────
+ |  SECTION A — CHAKRA DIAGNOSTIC ENGINE
+ *────────────────────────────────────────────────────────────*/
+typedef enum {
+    CHAKRA_OK = 0,
+    CHAKRA_MOOLADHARA,
+    CHAKRA_SWADHISTHAN,
+    CHAKRA_MANIPUR,
+    CHAKRA_ANAHATA,
+    CHAKRA_VISHUDDHI,
+    CHAKRA_AJNA,
+    CHAKRA_SAHASRARA
+} ChakraState;
+
+
+/*──────────────────────────────────────────────────────────────
+ |  SECTION B — AST NODE TYPES
+ *────────────────────────────────────────────────────────────*/
+typedef enum {
+
+    /* Core literals */
+    AST_NUMBER,
+    AST_IDENTIFIER,
+    AST_STRING,
+    AST_BOOL,        // true / false
+    /* Expressions */
+    AST_BINARY,
+    AST_ASSIGNMENT,
+    AST_UPDATE,        // x = expression
+    AST_LIST,          // [a, b, c]
+    AST_INDEX,         // a[0]
+    AST_DICT,          // {"a":1, "b":2}
+    AST_INDEX_UPDATE,
+/* Control / Grammar */
+    AST_IF,
+    AST_BLOCK,
+    AST_PROGRAM,     // script / file root
+    AST_IMPORT,      // module import
+    AST_LOOP,        // future
+    AST_WHILE,       // jabtak loop
+    AST_BREAK,       // rukja (break)
+    AST_CONTINUE,    // chalu (continue)
+    AST_RETURN,      // wapas (return)
+    AST_NOT,    //logical NOT (Nahi)
+    AST_INC,         // ++
+    AST_DEC,         // --
+
+    /* AI Nodes */
+    AST_SAKHI,
+    AST_NIYU,
+    AST_SHIRI,
+    AST_MIRA,
+    AST_KAVYA,
+
+/* Functions */
+    AST_FUNCTION,      // function definition
+    AST_CALL,          // function call
+
+    /* Universal command (sri_*) */
+    AST_COMMAND
+
+} ASTNodeType;
+
+
+/*─────────────────────────────────────────────────────────────
+ | SECTION C — AST NODE STRUCTURE
+ *─────────────────────────────────────────────────────────────*/
+typedef struct ASTNode {
+
+    ASTNodeType type;
+
+    /*────────────────────────
+      Primitive values
+    ────────────────────────*/
+    double  number_value;
+    int  bool_value;     // 1 = true, 0 = false
+    char string_value[256];
+    char name[128];
+
+    /*────────────────────────
+      Binary expression
+    ────────────────────────*/
+    struct ASTNode *left;
+    struct ASTNode *right;
+    char op[4];                 // + - * / > < >= <= == !=
+
+    int is_prefix;   /* for ++x / x++ / --x / x-- */
+
+    /*────────────────────────
+      Assignment / Command
+    ────────────────────────*/
+    struct ASTNode *value;
+    char command_name[128];
+
+    /*────────────────────────
+      IF / ELSE
+    ────────────────────────*/
+    struct ASTNode *condition;   // agar condition
+    struct ASTNode *else_block;  // warna block
+
+    /*────────────────────────
+      Block
+    ────────────────────────*/
+    struct ASTNode **statements;
+    int stmt_count;
+
+/*────────────────────────
+      Function
+    ────────────────────────*/
+    char function_name[128];
+
+    struct ASTNode **params;
+    int param_count;
+
+    struct ASTNode *body;
+
+
+/*────────────────────────
+      List / Index
+    ────────────────────────*/
+    struct ASTNode **elements;
+    int element_count;
+
+    struct ASTNode *index_target;   // a[...]
+    struct ASTNode *index_expr;     // ... inside []
+
+    struct ASTNode *index_value;    // a[expr] = value
+/*────────────────────────
+      Dict / Map
+    ────────────────────────*/
+    struct ASTNode **dict_keys;
+    struct ASTNode **dict_values;
+    int dict_count;
+
+    /*────────────────────────
+      Call
+    ────────────────────────*/
+    struct ASTNode **args;
+    int arg_count;
+
+    /*────────────────────────
+      Return
+    ────────────────────────*/
+    struct ASTNode *return_expr;
+
+    /*────────────────────────
+      Diagnostics
+    ────────────────────────*/
+    ChakraState chakra_state;
+
+} ASTNode;
+
+
+/*──────────────────────────────────────────────────────────────
+ |  SECTION D — CONSTRUCTORS
+ *────────────────────────────────────────────────────────────*/
+
+/* Core */
+ASTNode *new_number_node(double value);
+ASTNode *new_identifier_node(const char *name);
+ASTNode *new_string_node(const char *str);
+
+/* Expressions */
+ASTNode *new_binary_node(char op, ASTNode *left, ASTNode *right);
+ASTNode *new_assignment_node(const char *name, ASTNode *value);
+ASTNode *new_update_node(const char *name, ASTNode *value);
+
+ASTNode *new_list_node(ASTNode **elements, int count);
+ASTNode *new_index_node(ASTNode *target, ASTNode *index_expr);
+
+ASTNode *new_dict_node(ASTNode **keys, ASTNode **values, int count);
+
+ASTNode *new_index_update_node(ASTNode *target, ASTNode *index_expr, ASTNode *value);
+
+/* AI */
+ASTNode *new_sakhi_node(ASTNode *msg);
+ASTNode *new_niyu_node(ASTNode *msg);
+ASTNode *new_shiri_node(ASTNode *msg);
+ASTNode *new_mira_node(ASTNode *msg);
+ASTNode *new_kavya_node(ASTNode *msg);
+
+/* Universal command */
+ASTNode *new_command_node(const char *cmd_name, ASTNode *arg);
+ASTNode *new_import_node(const char *module_name);
+
+/* Block */
+ASTNode *new_block_node(ASTNode **stmts, int count);
+ASTNode *new_program_node(ASTNode **stmts, int count);
+
+/* Grammar */
+ASTNode *new_if_node(ASTNode *condition, ASTNode *then_block);
+ASTNode *new_while_node(ASTNode *condition, ASTNode *body);
+ASTNode *new_break_node(void);
+ASTNode *new_continue_node(void);
+ASTNode *new_return_node(ASTNode *expr);
+
+/* Functions */
+ASTNode *new_function_node(
+    const char *name,
+    ASTNode **params,
+    int param_count,
+    ASTNode *body
+);
+
+ASTNode *new_call_node(
+    const char *name,
+    ASTNode **args,
+    int arg_count
+);
+
+ASTNode *new_return_node(ASTNode *expr);
+
+/* Cleanup */
+void ast_free(ASTNode *node);
+
+/* Logical */
+ASTNode *new_not_node(ASTNode *expr);
+
+/* Inc / Dec */
+ASTNode *new_inc_node(ASTNode *expr, int is_prefix);
+ASTNode *new_dec_node(ASTNode *expr, int is_prefix);
+
+#endif /* AST_H */

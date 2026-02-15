@@ -1,0 +1,11 @@
+bolo "TEST-2 START"
+
+kaam add(a, b) {
+    mavi c = a + b
+    return c
+}
+
+mavi r = add(3, 4)
+bolo r
+
+bolo "TEST-2 END"

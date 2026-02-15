@@ -1,0 +1,115 @@
+bolo "=============================="
+bolo "  SHRIJILANG MASTER TEST START "
+bolo "=============================="
+
+bolo "---- BASIC ----"
+mavi x = 10
+mavi y = 20
+bolo x
+bolo y
+
+bolo "---- ARITH ----"
+bolo x + y
+bolo y - x
+bolo x * y
+bolo y / x
+bolo y % x
+
+bolo "---- STRING ----"
+bolo "radhe radhe"
+bolo "x+y is: "
+bolo x + y
+
+bolo "---- BOOL ----"
+bolo true
+bolo false
+
+bolo "---- COMPARE ----"
+agar x < y {
+    bolo "OK: x < y"
+} warna {
+    bolo "FAIL: x < y"
+}
+
+agar x == 10 {
+    bolo "OK: x == 10"
+} warna {
+    bolo "FAIL: x == 10"
+}
+
+agar x != y {
+    bolo "OK: x != y"
+}
+
+agar y > 19 {
+    bolo "OK: y > 19 (means y >= 20)"
+}
+
+agar x < 11 {
+    bolo "OK: x < 11 (means x <= 10)"
+}
+
+bolo "---- NAHI (NOT) ----"
+agar nahi (x == y) {
+    bolo "OK: nahi works"
+}
+
+bolo "---- WHILE LOOP ----"
+mavi i = 0
+jabtak i < 10 {
+    i = i + 1
+
+    agar i == 3 {
+        bolo "chalu at 3"
+        chalu
+    }
+
+    agar i == 7 {
+        bolo "rukja at 7"
+        rukja
+    }
+
+    bolo "i="
+    bolo i
+}
+
+bolo "---- FUNCTION: add ----"
+kaam add(a, b) {
+    wapas a + b
+}
+
+mavi r = add(5, 7)
+bolo "add(5,7)="
+bolo r
+
+bolo "---- FUNCTION: max2 ----"
+kaam max2(a, b) {
+    agar a > b {
+        wapas a
+    } warna {
+        wapas b
+    }
+}
+
+bolo "max2(9,4)="
+bolo max2(9, 4)
+bolo "max2(2,10)="
+bolo max2(2, 10)
+
+bolo "---- FUNCTION + LOOP ----"
+kaam square(n) {
+    wapas n * n
+}
+
+mavi t = 1
+mavi total = 0
+jabtak t < 6 {
+    total = total + square(t)
+    t = t + 1
+}
+bolo "sum square 1..5 ="
+bolo total
+
+bolo "=============================="
+bolo "  SHRIJILANG MASTER TEST END   "
+bolo "=============================="

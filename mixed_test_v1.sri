@@ -1,0 +1,26 @@
+mavi a = 10
+mavi b = 5
+
+bolo "Start"
+bolo a
+bolo b
+
+jabtak a > 0 {
+
+    a = a - 1
+
+    agar a == 7 {
+        bolo "skip 7"
+        chalu
+    }
+
+    agar a == 3 {
+        bolo "break at 3"
+        rukja
+    }
+
+    bolo a
+}
+
+bolo "Done"
+bolo a

@@ -1,0 +1,10 @@
+mavi i = 0
+
+jabtak i < 10 {
+    i = i + 1
+    agar i == 5 {
+        rukja
+    }
+}
+
+mavi x = i

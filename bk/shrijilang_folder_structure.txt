@@ -1,0 +1,90 @@
+.
+├── ai_router.c
+├── build
+│   ├── interpreter_test
+│   ├── lexer_test
+│   ├── parser_test
+│   └── shriji
+├── env
+│   └── env.c
+├── include
+│   ├── ast.h
+│   ├── env.h
+│   ├── error.h
+│   ├── interpreter.h
+│   ├── niyu.h
+│   ├── parser.h
+│   └── token.h
+├── kavya
+│   ├── kavya_core.c
+│   └── kavya.h
+├── main.c
+├── Makefile
+├── mira
+│   ├── mira_core.c
+│   └── mira.h
+├── niyu
+│   ├── niyu_anchor.c
+│   ├── niyu_bridge.c
+│   ├── niyu_bridge.h
+│   ├── niyu_cause.c
+│   ├── niyu_chain.c
+│   ├── niyu_clarity.c
+│   ├── niyu_consistency.c
+│   ├── niyu_deduction.c
+│   ├── niyu_depth.c
+│   ├── niyu_effect.c
+│   ├── niyu_emotion.c
+│   ├── niyu_explain.c
+│   ├── niyu.h
+│   ├── niyu_identity.c
+│   ├── niyu_induction.c
+│   ├── niyu_logic.c
+│   ├── niyu_memory.c
+│   ├── niyu_meta10_esi.c
+│   ├── niyu_meta.c
+│   ├── niyu_mfl.c
+│   ├── niyu_observation.c
+│   ├── niyu_predict.c
+│   ├── niyu_reason.c
+│   ├── niyu_resolve.c
+│   ├── niyu_root.c
+│   ├── niyu_self.c
+│   ├── niyu_she.c
+│   ├── niyu_shield.c
+│   ├── niyu_sol.c
+│   ├── niyu_stability.c
+│   ├── niyu_synthesis.c
+│   ├── niyu_vision.c
+│   └── niyu_why_engine.c
+├── sakhi
+│   ├── sakhi_bridge.c
+│   ├── sakhi_bridge.h
+│   ├── sakhi_core.c
+│   ├── sakhi_core.h
+│   ├── sakhi_emotion.c
+│   ├── sakhi_emotion.h
+│   ├── sakhi.h
+│   ├── sakhi_memory.c
+│   └── sakhi_memory.h
+├── shiri
+│   ├── shiri_core.c
+│   └── shiri.h
+├── shrijilang
+├── shrijilang_folder_structure.txt
+├── shrijilang_full_snapshot.txt
+├── snapshot.txt
+├── src
+│   ├── ast.c
+│   ├── env.c
+│   ├── error.c
+│   ├── interpreter.c
+│   ├── main.c
+│   ├── parser.c
+│   └── token.c
+└── tests
+    ├── interpreter_test.c
+    ├── lexer_test.c
+    └── parser_test.c
+
+10 directories, 77 files
