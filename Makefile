@@ -19,6 +19,8 @@ SRC = \
 	src/token.c \
 	src/ast.c \
 	src/parser.c \
+        gyaan/core/gyaan_engine.c \
+        gyaan/data/gyaan_rules.c \
 	src/interpreter.c \
 	src/runtime.c \
 	src/error.c \
@@ -47,6 +49,7 @@ SRC = \
 	src/fix_interactive.c \
 	src/typo_engine.c \
 	src/error_intelligence.c
+
 
 # ============================================================
 # OUTPUT

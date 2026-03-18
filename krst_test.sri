@@ -1,0 +1,36 @@
+bolo "🚀 START TEST"
+
+mavi x = 5
+bolo x
+
+bolo 5 + 3 * 2
+
+agar x > 2 {
+    bolo "condition ok"
+}
+
+mavi i = 0
+jabtak i < 3 {
+    bolo i
+    i = i + 1
+}
+
+kaam add(a, b) {
+    wapas a + b
+}
+
+bolo add(2, 3)
+
+
+# 🔥 ERROR TEST
+
+bolo 5 + * 2
+
+mavi z =
+
+mavi k = 0
+jabtak k < 2 {
+    bolo k
+}
+
+bolo "🎯 END TEST"

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../include/error.h"
+#include "../gyaan/core/gyaan_engine.h"
 
 int error_reported = 0;
 
@@ -8,19 +9,30 @@ static ShrijiErrorMode CURRENT_ERROR_MODE = ERROR_MODE_IMMEDIATE;
 
 static ShrijiErrorInfo LAST_ERROR = {0};
 
+/* 🔥 ERROR STORAGE */
+#define MAX_ERRORS 100
 
-/*──────────────────────────────────────────────
- | ERROR MODE
- *──────────────────────────────────────────────*/
+typedef struct {
+    int line;
+    int col;
+    char code[32];
+    char context[64];
+    char message[256];
+    char hint[256];
+} StoredError;
+
+static StoredError ERROR_LIST[MAX_ERRORS];
+static int ERROR_COUNT = 0;
+
+
+/*──────────────────────────────────────────────*/
 void shriji_set_error_mode(ShrijiErrorMode mode)
 {
     CURRENT_ERROR_MODE = mode;
 }
 
 
-/*──────────────────────────────────────────────
- | ERROR CODE → STRING
- *──────────────────────────────────────────────*/
+/*──────────────────────────────────────────────*/
 static const char *error_code_str(ShrijiErrorCode code)
 {
     switch (code) {
@@ -38,10 +50,10 @@ static const char *error_code_str(ShrijiErrorCode code)
         case E_PARSE_OPERATOR_CHAIN: return "E_PARSE_OPERATOR_CHAIN";
         case E_PARSE_MISSING_OPERAND: return "E_PARSE_MISSING_OPERAND";
 
-       case E_PARSE_UNMATCHED_PAREN: return "E_PARSE_UNMATCHED_PAREN";
-       case E_PARSE_BRACKET_MISSING: return "E_PARSE_BRACKET_MISSING";
-       case E_PARSE_BRACKET_EXTRA: return "E_PARSE_BRACKET_EXTRA";
-       case E_PARSE_INVALID_TOKEN: return "E_PARSE_INVALID_TOKEN";
+        case E_PARSE_UNMATCHED_PAREN: return "E_PARSE_UNMATCHED_PAREN";
+        case E_PARSE_BRACKET_MISSING: return "E_PARSE_BRACKET_MISSING";
+        case E_PARSE_BRACKET_EXTRA: return "E_PARSE_BRACKET_EXTRA";
+        case E_PARSE_INVALID_TOKEN: return "E_PARSE_INVALID_TOKEN";
 
         case E_IF_01: return "E_IF_01";
 
@@ -56,9 +68,7 @@ static const char *error_code_str(ShrijiErrorCode code)
 }
 
 
-/*──────────────────────────────────────────────
- | AUTO MESSAGE SYSTEM
- *──────────────────────────────────────────────*/
+/*──────────────────────────────────────────────*/
 static const char *error_message_for_code(ShrijiErrorCode code)
 {
     switch (code) {
@@ -84,9 +94,31 @@ static const char *error_message_for_code(ShrijiErrorCode code)
 }
 
 
-/*──────────────────────────────────────────────
- | ERROR EMIT
- *──────────────────────────────────────────────*/
+/*──────────────────────────────────────────────*/
+static void store_error(
+    ShrijiErrorCode code,
+    const char *context,
+    const char *message,
+    const char *hint,
+    int line,
+    int col
+)
+{
+    if (ERROR_COUNT >= MAX_ERRORS) return;
+
+    StoredError *e = &ERROR_LIST[ERROR_COUNT++];
+
+    snprintf(e->code, sizeof(e->code), "%s", error_code_str(code));
+    snprintf(e->context, sizeof(e->context), "%s", context ? context : "");
+    snprintf(e->message, sizeof(e->message), "%s", message ? message : "");
+    snprintf(e->hint, sizeof(e->hint), "%s", hint ? hint : "");
+
+    e->line = line;
+    e->col = col;
+}
+
+
+/*──────────────────────────────────────────────*/
 void shriji_error(
     ShrijiErrorCode code,
     const char *context,
@@ -105,8 +137,6 @@ void shriji_error(
     LAST_ERROR.message = message;
     LAST_ERROR.hint = hint;
     LAST_ERROR.has_location = 0;
-    LAST_ERROR.line = 0;
-    LAST_ERROR.col = 0;
 
     if (CURRENT_ERROR_MODE == ERROR_MODE_IMMEDIATE) {
 
@@ -119,13 +149,20 @@ void shriji_error(
             printf("   hint: %s\n", hint);
 
         printf("\n");
+
+        /* 🔥 GYAAN HOOK */
+        const ShrijiErrorInfo *last = shriji_last_error();
+        if (last) {
+            gyaan_print(last);
+        }
+
+    } else {
+        store_error(code, context, message, hint, 0, 0);
     }
 }
 
 
-/*──────────────────────────────────────────────
- | ERROR WITH LOCATION
- *──────────────────────────────────────────────*/
+/*──────────────────────────────────────────────*/
 void shriji_error_at(
     Token tok,
     ShrijiErrorCode code,
@@ -161,38 +198,62 @@ void shriji_error_at(
             printf("   hint: %s\n", hint);
 
         printf("\n");
+
+        /* 🔥 GYAAN HOOK */
+        const ShrijiErrorInfo *last = shriji_last_error();
+        if (last) {
+            gyaan_print(last);
+        }
+
+    } else {
+        store_error(code, context, message, hint, tok.line, tok.col);
     }
 }
 
 
-/*──────────────────────────────────────────────
- | LAST ERROR
- *──────────────────────────────────────────────*/
+/*──────────────────────────────────────────────*/
+void shriji_print_all_errors(void)
+{
+    if (ERROR_COUNT == 0) return;
+
+    printf("\n📄 KRST ANALYSIS REPORT\n");
+    printf("──────────────────────────────\n");
+
+    for (int i = 0; i < ERROR_COUNT; i++) {
+        StoredError *e = &ERROR_LIST[i];
+
+        printf("%d) %s | %s → %s",
+               i + 1,
+               e->code,
+               e->context,
+               e->message);
+
+        if (e->line > 0)
+            printf(" (line %d, col %d)", e->line, e->col);
+
+        printf("\n");
+
+        if (e->hint[0])
+            printf("   hint: %s\n", e->hint);
+
+        printf("\n");
+    }
+
+    printf("──────────────────────────────\n\n");
+
+    ERROR_COUNT = 0;
+
+    /* 🔥 GYAAN HOOK */
+    const ShrijiErrorInfo *last = shriji_last_error();
+    if (last) {
+        gyaan_print(last);
+    }
+}
+/*──────────────────────────────────────────────*/
 const ShrijiErrorInfo *shriji_last_error(void)
 {
     if (!error_reported)
         return NULL;
 
     return &LAST_ERROR;
-}
-
-
-/*──────────────────────────────────────────────
- | GUIDE
- *──────────────────────────────────────────────*/
-void shriji_print_guide(void)
-{
-    const ShrijiErrorInfo *e = shriji_last_error();
-
-    if (!e) {
-        printf("\nKoi error pending nahi hai.\n\n");
-        return;
-    }
-
-    printf("\nError: %s\n", e->message ? e->message : "");
-
-    if (e->hint && e->hint[0])
-        printf("Hint: %s\n", e->hint);
-
-    printf("\n");
 }

@@ -1,0 +1,7 @@
+mavi i = 0
+
+bolo i
+
+i = i + 1
+
+bolo i

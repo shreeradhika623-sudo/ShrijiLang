@@ -144,6 +144,21 @@ static const char *strip_quotes(const char *s)
 /*──────────────────────────────────────────────────────────────
  | MAIN EVALUATOR
  *──────────────────────────────────────────────────────────────*/
+Value shriji_execute_line(const char *line, Env *env, ShrijiRuntime *rt)
+{
+    if (!line || !*line) return value_null();
+
+    while (*line == ' ' || *line == '\t') line++;
+    if (*line == '\0') return value_null();
+
+    printf("[KRST] Input: %s\n", line);
+
+    ASTNode *node = parse_program(line);
+    if (!node) return value_null();
+
+    return eval(node, env, rt);
+}
+
 Value eval(ASTNode *node, Env *env, ShrijiRuntime *rt)
 {
     static int state_initialized = 0;
@@ -954,7 +969,6 @@ case AST_BINARY: {
 
         return value_null();
     }
-
 case AST_WHILE: {
 
     rt->loop_depth++;
@@ -962,13 +976,21 @@ case AST_WHILE: {
     Value last = value_null();
     int local_guard = 0;
 
-    while (value_to_number(eval(node->condition, env, rt))) {
+    while (1) {
+
+        Value condv = eval(node->condition, env, rt);
+
+        if (!value_to_number(condv)) {
+            value_free(&condv);
+            break;
+        }
+
+        value_free(&condv);
 
         rt->continue_flag = 0;
 
         last = eval(node->body, env, rt);
 
-        /* return exits loop */
         if (rt->return_flag) {
             rt->loop_depth--;
             return rt->return_value;
@@ -1040,69 +1062,82 @@ if (rt->break_flag || rt->continue_flag)
 
 case AST_IMPORT: {
 
-        /* import "file.sri" */
-        const char *path = node->name;
+    /* 🔥 ENABLE ANALYSIS MODE */
+    shriji_set_error_mode(ERROR_MODE_COLLECT);
 
-        if (!path || !*path) {
-            shriji_error(
-                E_PARSE_02,
-                "import",
-                "empty import path",
-                "use: import \"file.sri\""
-            );
-            return value_null();
-        }
+    /* import "file.sri" */
+    const char *path = node->name;
 
-        /* read file */
-        FILE *fp = fopen(path, "rb");
-        if (!fp) {
-            shriji_error(
-                E_PARSE_02,
-                "import",
-                "file not found",
-                "check path or create file first"
-            );
-            return value_null();
-        }
-
-        fseek(fp, 0, SEEK_END);
-        long sz = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-
-        if (sz < 0) sz = 0;
-        if (sz > 1024 * 1024) sz = 1024 * 1024; /* 1MB limit */
-
-        char *buf = (char *)malloc((size_t)sz + 1);
-        if (!buf) {
-            fclose(fp);
-            return value_null();
-        }
-
-        size_t nread = fread(buf, 1, (size_t)sz, fp);
-        buf[nread] = '\0';
-        fclose(fp);
-
-        /* parse imported program */
-        ASTNode *prog = parse_program(buf);
-        free(buf);
-
-if (!prog) {
-    /* 🔥 DO NOT STOP — allow partial execution */
-    shriji_error(
-        E_PARSE_02,
-        "import",
-        "partial parse — continuing execution",
-        "some lines may have errors"
-    );
-}
-        /* run imported program in SAME env */
-if (prog) {
-    return eval(prog, env, rt);
-}
-
-return value_null();
-
+    if (!path || !*path) {
+        shriji_error(
+            E_PARSE_02,
+            "import",
+            "empty import path",
+            "use: import \"file.sri\""
+        );
+        shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+        return value_null();
     }
+
+    /* read file */
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        shriji_error(
+            E_PARSE_02,
+            "import",
+            "file not found",
+            "check path or create file first"
+        );
+        shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+        return value_null();
+    }
+
+    fseek(fp, 0, SEEK_END);
+    long sz = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (sz < 0) sz = 0;
+    if (sz > 1024 * 1024) sz = 1024 * 1024;
+
+    char *buf = (char *)malloc((size_t)sz + 1);
+    if (!buf) {
+        fclose(fp);
+        shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+        return value_null();
+    }
+
+    size_t nread = fread(buf, 1, (size_t)sz, fp);
+    buf[nread] = '\0';
+    fclose(fp);
+
+    /* 🔥 FULL FILE PARSE */
+    ASTNode *prog = parse_program(buf);
+    free(buf);
+
+    if (!prog) {
+        shriji_error(
+            E_PARSE_02,
+            "import",
+            "parse failed",
+            "check full file syntax"
+        );
+
+        shriji_print_all_errors();
+        shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+        return value_null();
+    }
+
+    /* 🔥 RUN FULL PROGRAM */
+    Value result = eval(prog, env, rt);
+
+    /* 🔥 PRINT ALL ERRORS (ONE SHOT) */
+    shriji_print_all_errors();
+
+    /* 🔥 BACK TO NORMAL MODE */
+    shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+
+    return result;
+}
 
 case AST_COMMAND: {
 

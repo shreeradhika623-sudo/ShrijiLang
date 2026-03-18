@@ -5,22 +5,13 @@
 
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <readline/readline.h>
-
-static char *prefill_text = NULL;
 
 #include "../include/krst_router.h"
 #include "../include/error.h"
 #include "../include/pragya_avastha.h"
 
-/* =======================================================
-   PROTOTYPES
-======================================================= */
-
-char detect_operator_type(const char *input);
-int operator_chain_at_position(const char *input, int pos, char op);
-int suggest_basic_fixes(const char *input, int pos, char *out_expr);
-int detect_all_operator_errors(const char *input, int positions[], char ops[], int max);
+/* PREFILL SYSTEM */
+static char *prefill_text = NULL;
 
 static int prefill_hook(void)
 {
@@ -32,14 +23,11 @@ static int prefill_hook(void)
     }
     return 0;
 }
-/* =======================================================
-   POINTER DISPLAY
-======================================================= */
 
+/* POINTER */
 static void print_pointer_multi(const char *text, int start)
 {
-    if (!text || start < 0)
-        return;
+    if (!text || start < 0) return;
 
     int len = strlen(text);
 
@@ -57,10 +45,109 @@ static void print_pointer_multi(const char *text, int start)
     printf("\n\n");
 }
 
-/* =======================================================
-   ERROR INTELLIGENCE ENGINE
-======================================================= */
+/* OPERATOR TYPE */
+static char detect_operator_type(const char *input)
+{
+    for (int i = 0; input[i]; i++)
+    {
+        if (strchr("+-*/", input[i]))
+            return input[i];
+    }
+    return 0;
+}
 
+/* OPERATOR CHAIN */
+static int operator_chain_at_position(const char *input, int pos, char op)
+{
+    int left = pos;
+    int right = pos;
+    int len = strlen(input);
+
+    while (left >= 0 && input[left] == op) left--;
+    while (right < len && input[right] == op) right++;
+
+    return right - left - 1;
+}
+
+/* MULTI ERROR */
+static int detect_all_operator_errors(const char *input, int positions[], char ops[], int max)
+{
+    int count = 0;
+
+    for (int i = 0; input[i] && count < max; i++)
+    {
+        if (strchr("+-*/", input[i]) && input[i] == input[i + 1])
+        {
+            positions[count] = i;
+            ops[count] = input[i];
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/* 🔥 FIXED (NO STATIC) */
+int suggest_basic_fixes(const char *input, int pos, char *out_expr)
+{
+    int left = pos, right = pos, len = strlen(input);
+
+    while (left >= 0 && !isdigit(input[left])) left--;
+    int end_left = left;
+
+    while (left >= 0 && isdigit(input[left])) left--;
+    left++;
+
+    while (right < len && !isdigit(input[right])) right++;
+    int start_right = right;
+
+    while (right < len && isdigit(input[right])) right++;
+
+    char left_num[64] = {0};
+    char right_num[64] = {0};
+
+    snprintf(left_num, sizeof(left_num), "%.*s", end_left - left + 1, input + left);
+    snprintf(right_num, sizeof(right_num), "%.*s", right - start_right, input + start_right);
+
+    if (!*left_num || !*right_num) return 0;
+
+    printf("\nPossible interpretations:\n\n");
+    printf("A) %s + %s\n", left_num, right_num);
+    printf("B) %s - %s\n", left_num, right_num);
+    printf("C) %s * %s\n", left_num, right_num);
+    printf("D) %s / %s\n", left_num, right_num);
+    printf("\nM) Manual fix\nI) Ignore\n");
+
+    printf("\nSelect option: ");
+
+    char line[32];
+
+    while (fgets(line, sizeof(line), stdin))
+    {
+        char c = tolower(line[0]);
+
+        if (c=='a'){sprintf(out_expr,"%s + %s",left_num,right_num);return 1;}
+        if (c=='b'){sprintf(out_expr,"%s - %s",left_num,right_num);return 1;}
+        if (c=='c'){sprintf(out_expr,"%s * %s",left_num,right_num);return 1;}
+        if (c=='d'){sprintf(out_expr,"%s / %s",left_num,right_num);return 1;}
+
+        if (c=='m')
+        {
+            printf("Enter expression: ");
+            if (!fgets(out_expr,128,stdin)) return 0;
+            out_expr[strcspn(out_expr,"\n")] = 0;
+            return 1;
+        }
+
+        if (c=='i') return 0;
+
+        printf("Invalid choice. Try again: ");
+    }
+
+    return 0;
+}
+
+/* MAIN ENGINE */
 void shriji_error_intelligence(
     PragyaAvastha *avastha,
     const ShrijiErrorInfo *err,
@@ -68,78 +155,41 @@ void shriji_error_intelligence(
 {
     (void)niyu_result;
 
-    if (!avastha || !err)
-        return;
+    if (!avastha || !err || !avastha->raw_text) return;
 
     const char *text = avastha->raw_text;
-
-    if (!text)
-        return;
-
-    int pos = err->col - 1;
-
-    /* ================= MULTI ERROR ================= */
+    int pos = err->col > 0 ? err->col - 1 : 0;
 
     int positions[10];
     char ops[10];
 
-    int total_errors = detect_all_operator_errors(text, positions, ops, 10);
+    int total = detect_all_operator_errors(text, positions, ops, 10);
 
-    if (total_errors > 1)
+    if (total > 1)
     {
-        printf("\nMultiple errors detected:\n\n");
+        printf("\nMultiple operator errors detected:\n\n");
 
-        for (int i = 0; i < total_errors; i++)
-        {
+        for (int i = 0; i < total; i++)
             printf("%d) '%c%c' at position %d\n",
-                   i + 1,
-                   ops[i],
-                   ops[i],
-                   positions[i] + 1);
-        }
+                   i+1, ops[i], ops[i], positions[i]+1);
 
-        printf("\nSuggestion: Use manual edit for best correction.\n\n");
+        printf("\nE) Edit full expression\nI) Ignore\nSelect: ");
 
-        printf("E) Edit full expression\n");
-        printf("I) Ignore\n");
+        char line[32];
+        if (!fgets(line,sizeof(line),stdin)) return;
 
-        printf("\nSelect option: ");
-
-        char line[128];
-
-        if (!fgets(line, sizeof(line), stdin))
-            return;
-
-        char choice = line[0];
-
-        if (choice == 'E' || choice == 'e')
+        if (tolower(line[0])=='e')
         {
+            printf("\nEdit:\n%s\n", text);
 
-printf("\nEdit this line:\n%s\n", text);
+            prefill_text = (char*)text;
+            rl_startup_hook = prefill_hook;
 
-/* 🔥 REAL PREFILL */
-prefill_text = (char *)text;
-rl_startup_hook = prefill_hook;
+            char *edited = readline("> ");
+            rl_startup_hook = NULL;
 
-char *edited = readline("> ");
-
-rl_startup_hook = NULL;   // cleanup
-
-if (!edited)
-    return;
-
-if (strlen(edited) == 0)
-{
-    printf("\n⚠ Empty input ignored.\n\n");
-    free(edited);
-    return;
-}
-            if (!edited)
-                return;
-
-            if (strlen(edited) == 0)
+            if (!edited || !*edited)
             {
-                printf("\n⚠ Empty input ignored.\n\n");
                 free(edited);
                 return;
             }
@@ -150,39 +200,35 @@ if (strlen(edited) == 0)
             avastha->stop_execution = 1;
             strcpy(avastha->corrected_text, edited);
 
-            printf("\n[Shriji] expression updated → %s\n\n", edited);
+            printf("\n[Shriji] updated → %s\n\n", edited);
 
-            KRSTRequest req;
-            req.input_text = edited;
+            KRSTRequest req = { .input_text = edited };
             krst_route_request(&req);
 
             free(edited);
-            return;
         }
-
         return;
     }
 
-    /* ================= SINGLE ERROR ================= */
-
     char op = detect_operator_type(text);
 
-    if (op && err->col > 0)
+    if (op)
     {
-        int chain = operator_chain_at_position(text, err->col - 1, op);
+        int chain = operator_chain_at_position(text, pos, op);
 
-        printf("\n%d '%c' operators in sequence detected\n", chain, op);
-        printf("Lagta hai extra operators aa gaye hain.\n\n");
-
-        char new_expr[128];
-
-        if (suggest_basic_fixes(text, err->col - 1, new_expr))
+        if (chain > 1)
         {
-            printf("\n[Shriji] expression updated → %s\n\n", new_expr);
+            printf("\n%d '%c' operators detected\n", chain, op);
+            printf("Extra operator issue lag raha hai\n");
+        }
 
-            KRSTRequest req;
-            req.input_text = new_expr;
+        char fixed[128];
 
+        if (suggest_basic_fixes(text, pos, fixed))
+        {
+            printf("\n[Shriji] auto fix → %s\n\n", fixed);
+
+            KRSTRequest req = { .input_text = fixed };
             krst_route_request(&req);
 
             avastha->stop_execution = 1;
@@ -190,178 +236,5 @@ if (strlen(edited) == 0)
         }
     }
 
-    /* ================= POINTER ================= */
-
     print_pointer_multi(text, pos);
-}
-
-/* =======================================================
-   MULTI ERROR DETECTOR
-======================================================= */
-
-int detect_all_operator_errors(const char *input, int positions[], char ops[], int max)
-{
-    int count = 0;
-
-    for (int i = 0; input[i] && count < max; i++)
-    {
-        if (input[i] == '+' || input[i] == '-' ||
-            input[i] == '*' || input[i] == '/')
-        {
-            if (input[i] == input[i + 1])
-            {
-                positions[count] = i;
-                ops[count] = input[i];
-                count++;
-            }
-        }
-    }
-
-    return count;
-}
-
-/* =======================================================
-   OPERATOR TYPE
-======================================================= */
-
-char detect_operator_type(const char *input)
-{
-    for (int i = 0; input[i]; i++)
-    {
-        if (input[i] == '+' ||
-            input[i] == '-' ||
-            input[i] == '*' ||
-            input[i] == '/')
-        {
-            return input[i];
-        }
-    }
-
-    return 0;
-}
-
-/* =======================================================
-   OPERATOR CHAIN
-======================================================= */
-
-int operator_chain_at_position(const char *input, int pos, char op)
-{
-    int left = pos;
-    int right = pos;
-
-    int len = strlen(input);
-
-    while (left >= 0 && input[left] == op)
-        left--;
-
-    while (right < len && input[right] == op)
-        right++;
-
-    return right - left - 1;
-}
-
-/* =======================================================
-   BASIC FIX ENGINE
-======================================================= */
-
-int suggest_basic_fixes(const char *input, int pos, char *out_expr)
-{
-    int left = pos;
-    int right = pos;
-
-    int len = strlen(input);
-
-    while (left >= 0 && !isdigit(input[left]))
-        left--;
-
-    int end_left = left;
-
-    while (left >= 0 && isdigit(input[left]))
-        left--;
-
-    left++;
-
-    while (right < len && !isdigit(input[right]))
-        right++;
-
-    int start_right = right;
-
-    while (right < len && isdigit(input[right]))
-        right++;
-
-    char left_num[64] = {0};
-    char right_num[64] = {0};
-
-    snprintf(left_num, sizeof(left_num), "%.*s",
-             end_left - left + 1, input + left);
-
-    snprintf(right_num, sizeof(right_num), "%.*s",
-             right - start_right, input + start_right);
-
-    if (strlen(left_num) == 0 || strlen(right_num) == 0)
-        return 0;
-
-    printf("\nPossible interpretations:\n\n");
-
-    printf("A) %s + %s\n", left_num, right_num);
-    printf("B) %s - %s\n", left_num, right_num);
-    printf("C) %s * %s\n", left_num, right_num);
-    printf("D) %s / %s\n", left_num, right_num);
-
-    printf("\nM) Manual fix");
-    printf("\nI) Ignore\n");
-
-    printf("\nSelect option: ");
-
-    char line[128];
-
-    while (1)
-    {
-        if (!fgets(line, sizeof(line), stdin))
-            return 0;
-
-        char choice = line[0];
-
-        if (choice == 'A' || choice == 'a')
-        {
-            snprintf(out_expr, 128, "%s + %s", left_num, right_num);
-            return 1;
-        }
-
-        if (choice == 'B' || choice == 'b')
-        {
-            snprintf(out_expr, 128, "%s - %s", left_num, right_num);
-            return 1;
-        }
-
-        if (choice == 'C' || choice == 'c')
-        {
-            snprintf(out_expr, 128, "%s * %s", left_num, right_num);
-            return 1;
-        }
-
-        if (choice == 'D' || choice == 'd')
-        {
-            snprintf(out_expr, 128, "%s / %s", left_num, right_num);
-            return 1;
-        }
-
-        if (choice == 'M' || choice == 'm')
-        {
-            printf("Type corrected expression: ");
-
-            if (!fgets(out_expr, 128, stdin))
-                return 0;
-
-            out_expr[strcspn(out_expr, "\n")] = 0;
-
-            return 1;
-        }
-
-        if (choice == 'I' || choice == 'i')
-            return 0;
-
-        printf("\nWrong option 🙂 Try again.\n");
-        printf("Select option: ");
-    }
 }

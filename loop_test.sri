@@ -1,0 +1,10 @@
+bolo "START"
+
+mavi i = 0
+
+jabtak i < 3 {
+    bolo i
+    i = i + 1
+}
+
+bolo "DONE"

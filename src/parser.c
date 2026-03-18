@@ -153,7 +153,7 @@ ASTNode *parse_program(const char *source)
     int count = 0;
 
     while (current.type != TOKEN_EOF) {
-
+   error_reported = 0;
         skip_separators();
         if (current.type == TOKEN_EOF)
             break;
@@ -193,16 +193,24 @@ static ASTNode *parse_statement(void)
 {
     ASTNode *node = NULL;
 
-    skip_separators();
-
     if (current.type == TOKEN_LEFT_BRACE) return parse_block();
-    if (current.type == TOKEN_AGAR)       return parse_if();
-    if (current.type == TOKEN_JABTAK)     return parse_while();
+
+    if (current.type == TOKEN_AGAR) {
+        ASTNode *i = parse_if();
+        if (!i) printf("DEBUG: IF NULL\n");
+        return i;
+    }
+
+    if (current.type == TOKEN_JABTAK) {
+        ASTNode *w = parse_while();
+        if (!w) printf("DEBUG: WHILE NULL\n");
+        return w;
+    }
+
     if (current.type == TOKEN_WAPAS)      return parse_return();
     if (current.type == TOKEN_KAAM)       return parse_function();
     if (current.type == TOKEN_MAVI)       return parse_assignment();
     if (current.type == TOKEN_IMPORT)     return parse_import();
-
     /* samay */
     if (current.type == TOKEN_SAMAY) {
         advance();
@@ -229,7 +237,7 @@ static ASTNode *parse_statement(void)
     advance();
     skip_separators();
 
-    node = parse_value();   // or parse_comparison()
+    node = parse_expression();
     if (!node) return NULL;
 
     skip_separators();
@@ -302,7 +310,7 @@ shriji_build_example(current_source, example, sizeof(example));
         current.type == TOKEN_NAHI   ||
         current.type == TOKEN_LEFT_BRACKET) {
 
-node = parse_value();
+node = parse_expression();
 if (!node) return NULL;
 
 if (current.type != TOKEN_NEWLINE &&
@@ -364,54 +372,63 @@ shriji_error_at(
  *──────────────────────────────────────────────*/
 static ASTNode *parse_block(void)
 {
-    if (!expect(TOKEN_LEFT_BRACE, E_PARSE_BRACKET_MISSING, "{", "missing {", "{ stmt }"))
+    if (!expect(TOKEN_LEFT_BRACE, E_PARSE_BRACKET_MISSING, "{", "missing {", "{ ... }"))
         return NULL;
 
     ASTNode **stmts = NULL;
     int count = 0;
 
     while (current.type != TOKEN_RIGHT_BRACE &&
-           current.type != TOKEN_EOF) {
+           current.type != TOKEN_EOF)
+    {
+
+// 🔥 FORCE SKIP INVALID TOKENS (CRITICAL FIX)
+if (current.type == TOKEN_ERROR) {
+    advance();
+    continue;
+}
 
         skip_separators();
 
         if (current.type == TOKEN_RIGHT_BRACE)
             break;
 
-ASTNode *s = parse_statement();
-if (!s) {
-    /* 🔥 ERROR RECOVERY INSIDE BLOCK */
-    while (current.type != TOKEN_NEWLINE &&
-           current.type != TOKEN_EOF &&
-           current.type != TOKEN_RIGHT_BRACE)
-    {
-        advance();
-    }
+        ASTNode *s = parse_statement();
 
-    skip_separators();
-    continue;
-}
+        if (!s) {
+            printf("DEBUG: statement NULL at block\n");
+
+            while (current.type != TOKEN_NEWLINE &&
+                   current.type != TOKEN_EOF &&
+                   current.type != TOKEN_RIGHT_BRACE)
+            {
+                advance();
+            }
+
+            skip_separators();
+            continue;
+        }
 
         ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
         if (!tmp) {
             free(stmts);
             return NULL;
         }
-        stmts = tmp;
 
+        stmts = tmp;
         stmts[count++] = s;
 
         skip_separators();
     }
 
-if (!expect(TOKEN_RIGHT_BRACE, E_PARSE_BRACKET_MISSING, "}", "missing }", "{ stmt }")) {
-    free(stmts);
-    return NULL;
-}
+    if (!expect(TOKEN_RIGHT_BRACE, E_PARSE_BRACKET_MISSING, "}", "missing }", "{ ... }")) {
+        free(stmts);
+        return NULL;
+    }
 
-skip_separators();   // 🔥 ADD THIS
+    skip_separators();
 
-return new_block_node(stmts, count);
+    return new_block_node(stmts, count);
 }
 
 /*──────────────────────────────────────────────

@@ -9,7 +9,7 @@ x = x + 20
 bolo x
 
 agar x > y {
-    bolo ("x bada hai")
+    bolo "x bada hai"
 }
 
 mavi i = 0
