@@ -67,7 +67,6 @@ static Token make_token(TokenType type, const char *start, int length)
 /*──────────────────────────────────────────────
   SKIP WHITESPACE
 ──────────────────────────────────────────────*/
-
 static void skip_whitespace(void)
 {
     for (;;) {
@@ -82,13 +81,14 @@ static void skip_whitespace(void)
 
             case '\n':
                 advance();
-                break;
+                return;   /* newline ko token banne do */
 
             default:
                 return;
         }
     }
 }
+
 
 /*──────────────────────────────────────────────
   NUMBER (INTEGER + DECIMAL)
@@ -142,7 +142,7 @@ static TokenType check_keyword(const char *start, int length)
 
 static Token identifier(void)
 {
-    const char *start = &source[current];
+    const char *start = &source[current - 1];
 
     while (isalnum(peek()) || peek() == '_')
         advance();
@@ -159,7 +159,7 @@ static Token identifier(void)
 
 static Token string(void)
 {
-    const char *start = &source[current];
+const char *start = &source[current - 1];
 
     while (peek() != '"' && peek() != '\0') {
         advance();
@@ -191,7 +191,7 @@ Token scan_token(void)
 {
     skip_whitespace();
 
-    const char *start = &source[current];
+const char *start = &source[current];
 
     if (peek() == '\0')
         return make_token(TOKEN_EOF, start, 0);
@@ -233,6 +233,10 @@ Token scan_token(void)
 
         case '<':
             return make_token(match('=') ? TOKEN_LTE : TOKEN_LT, start, 1);
+
+        case '\n':
+            return make_token(TOKEN_NEWLINE, start, 1);
+
 
         case '"':
             return string();

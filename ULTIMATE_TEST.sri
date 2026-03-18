@@ -1,0 +1,50 @@
+bolo "===== START ====="
+
+mavi x = 10
+mavi y = 5
+bolo x + y
+
+x = x + 20
+bolo x
+
+agar x > y {
+    bolo "x bada hai"
+}
+warna {
+    bolo "y bada hai"
+}
+
+mavi i = 0
+jabtak i < 3 {
+    bolo i
+    i = i + 1
+}
+
+kaam add(a, b) {
+    wapas a + b
+}
+
+mavi result = add(7, 8)
+bolo result
+
+mavi lst = [1, 2, 3]
+bolo lst[0]
+bolo lst[2]
+
+mavi d = {"a": 100, "b": 200}
+bolo d["a"]
+
+agar 1 == 1 {
+    bolo "true block"
+}
+
+mavi z = 5
+z = z + 1
+bolo z
+
+z = z + 1
+bolo z
+
+6+++6+++6
+
+bolo "===== END ====="

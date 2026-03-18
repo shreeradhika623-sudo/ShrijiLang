@@ -1,0 +1,29 @@
+bolo "START"
+
+mavi x = 10
+mavi y = 5
+bolo x + y
+
+x = x + 20
+bolo x
+
+agar x > y {
+    bolo "x bada hai"
+}
+
+bolo ""
+
+mavi i = 0
+jabtak i < 3 {
+    bolo i
+    i = i + 1
+}
+
+kaam add(a, b) {
+    wapas a + b
+}
+
+mavi result = add(7, 8)
+bolo result
+
+bolo "END"

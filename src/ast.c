@@ -287,6 +287,13 @@ void ast_free(ASTNode *node)
     ast_free(node->body);
     ast_free(node->return_expr);
 
+ /* LIST */
+    if (node->elements) {
+    for (int i = 0; i < node->element_count; i++) {
+       ast_free(node->elements[i]);
+    }
+       free(node->elements);
+    }
     if (node->statements) {
         for (int i = 0; i < node->stmt_count; i++)
             ast_free(node->statements[i]);
@@ -304,7 +311,20 @@ void ast_free(ASTNode *node)
             ast_free(node->args[i]);
         free(node->args);
     }
+/* DICT */
+    if (node->dict_keys) {
+        for (int i = 0; i < node->dict_count; i++) {
+            ast_free(node->dict_keys[i]);
+        }
+        free(node->dict_keys);
+    }
 
+    if (node->dict_values) {
+        for (int i = 0; i < node->dict_count; i++) {
+            ast_free(node->dict_values[i]);
+        }
+        free(node->dict_values);
+    }
     free(node);
 }
 
@@ -363,7 +383,7 @@ ASTNode *new_list_node(ASTNode **elements, int count)
 
     node->elements = elements;
     node->element_count = count;
-
+    node->chakra_state = CHAKRA_OK;
     return node;
 }
 
@@ -406,6 +426,6 @@ ASTNode *new_dict_node(ASTNode **keys, ASTNode **values, int count)
     node->dict_keys = keys;
     node->dict_values = values;
     node->dict_count = count;
-
+    node->chakra_state = CHAKRA_OK;
     return node;
 }

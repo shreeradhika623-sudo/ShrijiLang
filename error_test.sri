@@ -1,0 +1,11 @@
+bolo "ERROR TEST START"
+
+bolo x
+
+mavi a = 10
+a =
+
+mavi nums = [1,2]
+bolo nums[5]
+
+bolo "ERROR TEST END"

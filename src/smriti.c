@@ -1,55 +1,102 @@
 #include "../include/smriti.h"
-#include <time.h>
+#include <string.h>
 
-/*──────────────────────────────────────────────────────────────
-  GLOBAL SESSION MEMORY (RAM ONLY)
-  (PURE STATE — NO CONTROL, NO DECISION)
-──────────────────────────────────────────────────────────────*/
-SessionSmriti SESSION_SMRITI;
+/* ------------------------------
+   INTERNAL STATE (SILENT)
+   ------------------------------ */
 
-/*──────────────────────────────────────────────────────────────
-  Initialize Smriti (SESSION START)
-──────────────────────────────────────────────────────────────*/
+/* continuation (existing) */
+static int    has_cont = 0;
+static double cont_val = 0.0;
+static char   cont_op  = 0;
+
+/* STEP-11 context */
+static unsigned long turn_counter = 0;
+static char last_input_buf[512];
+static int  last_intent_val = 0;
+
+/* ------------------------------
+   LIFECYCLE
+   ------------------------------ */
 void smriti_init(void)
 {
-    SESSION_SMRITI.session_start = time(NULL);
+    has_cont = 0;
+    cont_val = 0.0;
+    cont_op  = 0;
 
-    SESSION_SMRITI.repeat_requested = 0;
-    SESSION_SMRITI.clarification_requested = 0;
+    turn_counter = 0;
+    last_input_buf[0] = '\0';
+    last_intent_val = 0;
 }
 
-/*──────────────────────────────────────────────────────────────
-  Reset Smriti (same run ke andar)
-──────────────────────────────────────────────────────────────*/
-void smriti_reset(void)
+/* ------------------------------
+   CONTINUATION (AS-IS)
+   ------------------------------ */
+int smriti_has_continuation(void)
 {
-    smriti_init();
+    return has_cont;
 }
 
-/*──────────────────────────────────────────────────────────────
-  Context Flags — REPEAT
-  (NON-DECISIVE, USER-VISIBLE)
-──────────────────────────────────────────────────────────────*/
-void smriti_set_repeat_requested(int on)
+void smriti_set_continuation(double value, char op)
 {
-    SESSION_SMRITI.repeat_requested = (on ? 1 : 0);
+    has_cont = 1;
+    cont_val = value;
+    cont_op  = op;
 }
 
-int smriti_is_repeat_requested(void)
+void smriti_clear_continuation(void)
 {
-    return SESSION_SMRITI.repeat_requested;
+    has_cont = 0;
+    cont_val = 0.0;
+    cont_op  = 0;
 }
 
-/*──────────────────────────────────────────────────────────────
-  Context Flags — CLARIFICATION
-  (NON-DECISIVE, USER-VISIBLE)
-──────────────────────────────────────────────────────────────*/
-void smriti_set_clarification_requested(int on)
+double smriti_get_continuation_value(void)
 {
-    SESSION_SMRITI.clarification_requested = (on ? 1 : 0);
+    return cont_val;
 }
 
-int smriti_is_clarification_requested(void)
+char smriti_get_continuation_op(void)
 {
-    return SESSION_SMRITI.clarification_requested;
+    return cont_op;
+}
+
+/* ------------------------------
+   STEP-11 CONTEXT (PASSIVE)
+   ------------------------------ */
+void smriti_next_turn(void)
+{
+    turn_counter++;
+}
+
+unsigned long smriti_get_turn(void)
+{
+    return turn_counter;
+}
+
+void smriti_set_last_input(const char *text)
+{
+    if (!text)
+    {
+        last_input_buf[0] = '\0';
+        return;
+    }
+    /* safe snapshot */
+    strncpy(last_input_buf, text, sizeof(last_input_buf) - 1);
+    last_input_buf[sizeof(last_input_buf) - 1] = '\0';
+}
+
+const char* smriti_get_last_input(void)
+{
+    return last_input_buf;
+}
+
+void smriti_set_last_intent(int intent)
+{
+    last_intent_val = intent;
+}
+
+int smriti_get_last_intent(void)
+{
+    return last_intent_val;
 }

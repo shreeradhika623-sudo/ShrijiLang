@@ -1,59 +1,38 @@
-/*=============================================================
-  SHRIJILANG — AI ROUTER (L3 CORE)
-  FROZEN DESIGN COMPLIANT — ROUTING ONLY
-=============================================================*/
+#include <stdio.h>
+#include <string.h>
 
 #include "../include/ai_router.h"
 #include "../include/ai_intent.h"
 
-#include <string.h>
+#include "../pragya/contracts/l3_request.h"
+#include "../pragya/contracts/l3_response.h"
+#include "../pragya/contracts/l3_intent.h"
 
-/*-------------------------------------------------------------
-  PRIMARY ROUTER (PACKET BASED)
-  RULES:
-  - NO Smriti access
-  - NO intent decision here
-  - NO teaching / lesson logic
-  - ONLY forward raw text to intent layer
--------------------------------------------------------------*/
-void ai_router_process_packet(const ShrijiBridgePacket *packet)
+/*
+   Legacy AI Router
+
+   NOTE:
+   ShrijiLang now uses KRST + Pragya Router
+   for all intelligence routing.
+
+   This module is preserved only for
+   future conversational AI layer.
+*/
+
+L3Response ai_router_dispatch(const ShrijiBridgePacket *pkt)
 {
-    if (!packet || !packet->text)
-        return;
+    L3Response resp;
 
-    /*
-      Router ka kaam yahin khatam hota hai.
-      Actual intent detection + thinking
-      next layers me hoga (Niyu / Intent Engine).
-    */
+    resp.text = NULL;
+    resp.success = 0;
 
-    AIIntent intent = ai_detect_intent(packet->text);
+    if (!pkt || !pkt->text)
+        return resp;
 
-    /*
-      NOTE:
-      - Router yahan kuch decide nahi karta
-      - intent ko store / act nahi karta
-      - sirf pipeline ko aage badhata hai
+    /* For now just acknowledge input */
 
-      (Future steps me yahan se Think/Speak
-       dispatcher judega — abhi intentionally empty)
-    */
+    resp.text = "AI router currently inactive.";
+    resp.success = 1;
 
-    (void)intent; /* suppress unused warning */
-}
-
-/*-------------------------------------------------------------
-  BACKWARD COMPATIBILITY
-  (Interpreter / old calls)
--------------------------------------------------------------*/
-void ai_router_process(const char *text)
-{
-    if (!text) return;
-
-    ShrijiBridgePacket pkt;
-    pkt.text   = text;
-    pkt.lang   = SHRIJI_LANG_AUTO;
-    pkt.source = SHRIJI_SRC_REPL;
-
-    ai_router_process_packet(&pkt);
+    return resp;
 }

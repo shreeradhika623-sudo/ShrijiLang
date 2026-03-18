@@ -3,17 +3,11 @@ bolo "   SHRIJILANG FULL TEST START   "
 bolo "==============================="
 
 
-# -------------------------------
-# 1️⃣ STRING TEST
-# -------------------------------
 bolo "--- STRING TEST ---"
 bolo "Radhe Radhe"
 bolo "ShrijiLang chal rahi hai"
 
 
-# -------------------------------
-# 2️⃣ NUMBER TEST
-# -------------------------------
 bolo "--- NUMBER TEST ---"
 mavi x = 10
 mavi y = 20
@@ -21,9 +15,6 @@ bolo x
 bolo y
 
 
-# -------------------------------
-# 3️⃣ LIST (INTEGER) TEST
-# -------------------------------
 bolo "--- INTEGER LIST TEST ---"
 mavi nums = [5, 15, 25, 35]
 bolo nums[0]
@@ -32,9 +23,6 @@ bolo nums[2]
 bolo nums[3]
 
 
-# -------------------------------
-# 4️⃣ LIST (STRING) TEST
-# -------------------------------
 bolo "--- STRING LIST TEST ---"
 mavi words = ["namaste", "hello", "bye"]
 bolo words[0]
@@ -42,9 +30,6 @@ bolo words[1]
 bolo words[2]
 
 
-# -------------------------------
-# 5️⃣ MIXED OUTPUT FLOW TEST
-# -------------------------------
 bolo "--- MIXED FLOW TEST ---"
 bolo "Value of x:"
 bolo x
@@ -52,9 +37,6 @@ bolo "First word:"
 bolo words[0]
 
 
-# -------------------------------
-# 6️⃣ REASSIGN VARIABLE TEST
-# -------------------------------
 bolo "--- VARIABLE UPDATE TEST ---"
 mavi z = 100
 bolo z
@@ -62,9 +44,6 @@ z = 200
 bolo z
 
 
-# -------------------------------
-# 7️⃣ MULTIPLE LISTS TEST
-# -------------------------------
 bolo "--- MULTIPLE LIST TEST ---"
 mavi a = [1, 2]
 mavi b = ["hi", "bye"]
@@ -72,17 +51,11 @@ bolo a[0]
 bolo b[1]
 
 
-# -------------------------------
-# 8️⃣ EMPTY / EDGE OUTPUT TEST
-# -------------------------------
 bolo "--- EDGE CASE TEST ---"
 bolo ""
 bolo " "
 
 
-# -------------------------------
-# END
-# -------------------------------
 bolo "==============================="
 bolo "    SHRIJILANG FULL TEST END   "
 bolo "==============================="

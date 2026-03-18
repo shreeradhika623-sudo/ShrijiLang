@@ -2,51 +2,48 @@
 
 #include "../include/event.h"
 #include "../include/state.h"
+#include "../include/runtime.h"
 
-/*──────────────────────────────────────────────────────────────
- |  SHRIJILANG — EVENT ENGINE
- |
- |  Maps events to state transitions
- |  STEP-6.3
- *────────────────────────────────────────────────────────────*/
+/* Internal runtime binding */
+static ShrijiRuntime *BOUND_RUNTIME = NULL;
 
-/* External execution state (owned by interpreter) */
-extern ExecutionState SHRIJI_STATE;
+/* Bind runtime once per execution */
+void event_bind_runtime(ShrijiRuntime *rt)
+{
+    BOUND_RUNTIME = rt;
+}
 
+/* Fire event */
+void event_fire(EventType type, const char *context)
+{
+    (void)context;
 
-/*──────────────────────────────────────────────────────────────
- |  Fire an event into the system
- *────────────────────────────────────────────────────────────*/
-void event_fire(EventType type, const char *context) {
+    if (!BOUND_RUNTIME)
+        return;
 
-    (void)context;  // context reserved for future use
-
-    switch (type) {
-
+    switch (type)
+    {
         case EVENT_EXECUTION_SUCCESS:
         case EVENT_ASSIGNMENT:
-            state_on_success(&SHRIJI_STATE);
+            state_on_success(&BOUND_RUNTIME->state);
             break;
 
         case EVENT_SHUNYA_ACCESS:
         case EVENT_ERROR:
-            state_on_error(&SHRIJI_STATE);
+            state_on_error(&BOUND_RUNTIME->state);
             break;
 
         case EVENT_FATAL_ERROR:
-            state_on_error(&SHRIJI_STATE);
-            state_on_error(&SHRIJI_STATE);  // double impact
+            state_on_error(&BOUND_RUNTIME->state);
+            state_on_error(&BOUND_RUNTIME->state);
             break;
 
         case EVENT_EXECUTION_BLOCKED:
-            SHRIJI_STATE.safety = STATE_CRITICAL;
-            SHRIJI_STATE.human  = HUMAN_MANDATORY;
+            BOUND_RUNTIME->state.safety = STATE_CRITICAL;
+            BOUND_RUNTIME->state.human  = HUMAN_MANDATORY;
             break;
 
-        case EVENT_EXECUTION_START:
-        case EVENT_NONE:
         default:
-            /* no-op */
             break;
     }
 }

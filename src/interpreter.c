@@ -14,6 +14,7 @@
 #include "../include/value.h"
 #include "../include/ai_router.h"
 
+#include "../include/runtime.h"
 
 #ifdef SHRIJI_ENABLE_MASTER_TOKENS
 #include "lang/token_master.h"
@@ -53,30 +54,18 @@ static char *unescape_string(const char *s)
 ShrijiTruthDiary SHRIJI_DIARY = {0};
 
 /*──────────────────────────────────────────────────────────────
- | GLOBAL EXECUTION STATE
- *──────────────────────────────────────────────────────────────*/
-ExecutionState SHRIJI_STATE;
-
-/* Loop control flags */
-static int BREAK_FLAG = 0;
-static int CONTINUE_FLAG = 0;
-static int LOOP_DEPTH = 0;
-
-/* Return control flags */
-static int RETURN_FLAG = 0;
-static Value RETURN_VALUE;
-
-/*──────────────────────────────────────────────────────────────
  | STATE DECISION HOOK
  *──────────────────────────────────────────────────────────────*/
-static int state_allows_execution(void)
+static int state_allows_execution(ShrijiRuntime *rt)
 {
-    if (SHRIJI_STATE.safety == STATE_CRITICAL) {
-        /* execution halted due to critical state */
+    if (!rt) return 0;
+
+    if (rt->state.safety == STATE_CRITICAL) {
         return 0;
     }
     return 1;
 }
+
 /*──────────────────────────────────────────────────────────────
  | SAFE DIVISION
  *──────────────────────────────────────────────────────────────*/
@@ -86,7 +75,7 @@ static double safe_div(double a, double b)
     if (b == 0) {
         event_fire(EVENT_ERROR, "division by zero");
         shriji_error(
-            E_PARSE_02,
+            E_RUNTIME_DIV_ZERO,
             "division",
             "division by zero",
             "denominator must not be zero"
@@ -104,7 +93,7 @@ static double safe_mod(double a, double b)
     if (b == 0) {
         event_fire(EVENT_ERROR, "modulo by zero");
         shriji_error(
-            E_PARSE_02,
+            E_RUNTIME_DIV_ZERO,
             "modulo",
             "modulo by zero",
             "denominator must not be zero"
@@ -155,16 +144,16 @@ static const char *strip_quotes(const char *s)
 /*──────────────────────────────────────────────────────────────
  | MAIN EVALUATOR
  *──────────────────────────────────────────────────────────────*/
-Value eval(ASTNode *node, Env *env)
+Value eval(ASTNode *node, Env *env, ShrijiRuntime *rt)
 {
     static int state_initialized = 0;
 
     if (!state_initialized) {
-        state_init(&SHRIJI_STATE);
+        state_init(&rt->state);
         state_initialized = 1;
     }
 
-    if (!state_allows_execution() || !node)
+    if (!state_allows_execution(rt) || !node)
         return value_null();
 
     /* 🧠 GLOBAL STEP COUNTER */
@@ -173,17 +162,17 @@ Value eval(ASTNode *node, Env *env)
         node->type != AST_CONTINUE &&
         node->type != AST_BLOCK &&
         node->type != AST_PROGRAM) {
-        SHRIJI_STATE.steps_used++;
+        rt->state.steps_used++;
     }
 
-    if (SHRIJI_STATE.steps_used > SHRIJI_STATE.max_steps) {
+    if (rt->state.steps_used > rt->state.max_steps) {
         shriji_error(
             E_PARSE_02,
             "runtime",
             "execution limit exceeded",
             "possible infinite loop detected"
         );
-        SHRIJI_STATE.safety = STATE_CRITICAL;
+        rt->state.safety = STATE_CRITICAL;
         return value_null();
     }
 
@@ -191,28 +180,23 @@ Value eval(ASTNode *node, Env *env)
 
 switch (node->type) {
 
-
-
 case AST_BREAK:
-
-    if (LOOP_DEPTH <= 0) {
+    if (rt->loop_depth <= 0) {
         shriji_error(
-        E_RUNTIME_01,
-        "break",
-        "loop ke bahar rukja allowed nahi hai",
-        "rukja sirf while loop ke andar use karein"
-    );
+            E_RUNTIME_01,
+            "break",
+            "loop ke bahar rukja allowed nahi hai",
+            "rukja sirf while loop ke andar use karein"
+        );
+        return value_null();
+    }
+
+    rt->break_flag = 1;
     return value_null();
-}
-
-
-   BREAK_FLAG = 1;
-    return value_null();
-
 
 case AST_CONTINUE:
 
-     if (LOOP_DEPTH <= 0) {
+     if (rt->loop_depth <= 0) {
         shriji_error(
         E_RUNTIME_01,
         "continue",
@@ -221,7 +205,7 @@ case AST_CONTINUE:
     );
     return value_null();
 }
-    CONTINUE_FLAG = 1;
+    rt->continue_flag = 1;
     return value_null();
 
 
@@ -232,10 +216,10 @@ case AST_CONTINUE:
 case AST_RETURN: {
         Value v = value_null();
         if (node->return_expr)
-            v = eval(node->return_expr, env);
+         v = eval(node->return_expr, env, rt);
 
-        RETURN_FLAG = 1;
-        RETURN_VALUE = v;
+       rt->return_flag = 1;
+       rt->return_value = v;
         return v;
     }
 
@@ -292,10 +276,7 @@ case AST_DEC: {
         env_set(env, node->function_name, value_function(node));
         return value_null();
     }
-
-
 case AST_CALL: {
-
     /*──────────────────────────────────────────────
       BUILT-IN FUNCTIONS (FILE I/O)
       padho("file")                -> returns string
@@ -319,7 +300,7 @@ case AST_CALL: {
             return value_null();
         }
 
-        Value pathv = eval(node->args[0], env);
+        Value pathv = eval(node->args[0], env, rt);
 
         if (pathv.type != VAL_STRING || !pathv.string) {
             value_free(&pathv);
@@ -385,8 +366,8 @@ if (!fp) {
             return value_null();
         }
 
-        Value pathv = eval(node->args[0], env);
-        Value datav = eval(node->args[1], env);
+        Value pathv = eval(node->args[0], env, rt);
+        Value datav = eval(node->args[1], env, rt);
 
         if (pathv.type != VAL_STRING || !pathv.string) {
             value_free(&pathv);
@@ -448,8 +429,8 @@ if (!fp) {
             return value_null();
         }
 
-        Value pathv = eval(node->args[0], env);
-        Value datav = eval(node->args[1], env);
+        Value pathv = eval(node->args[0], env, rt);
+        Value datav = eval(node->args[1], env, rt);
 
         if (pathv.type != VAL_STRING || !pathv.string) {
             value_free(&pathv);
@@ -538,11 +519,11 @@ if (!fp) {
     }
 
     /* save outer return state (nested calls safe) */
-    int old_return_flag = RETURN_FLAG;
-    Value old_return_value = RETURN_VALUE;
+    int old_return_flag = rt->return_flag;
+    Value old_return_value = rt->return_value;
 
-    RETURN_FLAG = 0;
-    RETURN_VALUE = value_null();
+    rt->return_flag = 0;
+    rt->return_value = value_null();
 
     /* new call scope */
     env_push_scope(env);
@@ -550,22 +531,22 @@ if (!fp) {
     /* bind params */
     for (int i = 0; i < fn->param_count; i++) {
         ASTNode *p = fn->params[i];
-        Value av = eval(node->args[i], env);
+        Value av = eval(node->args[i], env, rt);
         env_set(env, p->name, av);
     }
 
     /* run body */
-    Value result = eval(fn->body, env);
+    Value result = eval(fn->body, env, rt);
 
-    if (RETURN_FLAG)
-        result = RETURN_VALUE;
+    if (rt->return_flag)
+        result = rt->return_value;
 
     /* end call scope */
     env_pop_scope(env);
 
     /* restore outer return state */
-    RETURN_FLAG = old_return_flag;
-    RETURN_VALUE = old_return_value;
+    rt->return_flag = old_return_flag;
+    rt->return_value = old_return_value;
 
     return result;
 }
@@ -590,7 +571,7 @@ if (!fp) {
         if (!items) return value_null();
 
         for (int i = 0; i < n; i++) {
-            Value ev = eval(node->elements[i], env);
+            Value ev = eval(node->elements[i], env, rt);
             items[i] = value_copy(ev);
             value_free(&ev);
         }
@@ -616,8 +597,8 @@ case AST_DICT: {
         }
 
         for (int i = 0; i < n; i++) {
-            Value kv = eval(node->dict_keys[i], env);
-            Value vv = eval(node->dict_values[i], env);
+            Value kv = eval(node->dict_keys[i], env, rt);
+            Value vv = eval(node->dict_values[i], env, rt);
 
             keys[i] = value_copy(kv);
             vals[i] = value_copy(vv);
@@ -631,8 +612,8 @@ case AST_DICT: {
 
 case AST_INDEX: {
 
-    Value tv = eval(node->index_target, env);
-    Value iv = eval(node->index_expr, env);
+    Value tv = eval(node->index_target, env, rt);
+    Value iv = eval(node->index_expr, env, rt);
 
     /*──────────────────────────────────────────────
       LIST INDEXING: a[0]
@@ -740,8 +721,8 @@ case AST_INDEX_UPDATE: {
     /* fetch container directly from env */
     Value tv = env_get(env, var_name);
 
-    Value iv = eval(node->index_expr, env);
-    Value vv = eval(node->index_value, env);
+    Value iv = eval(node->index_expr, env, rt);
+    Value vv = eval(node->index_value, env, rt);
 
     /*──────────────────────────────────────────────
       LIST INDEX UPDATE: a[0] = value
@@ -824,18 +805,16 @@ case AST_IDENTIFIER: {
 }
 
  case AST_ASSIGNMENT: {
-        Value value = eval(node->value, env);
+        Value value = eval(node->value, env, rt);
         env_set(env, node->name, value);
 
         event_fire(EVENT_ASSIGNMENT, node->name);
-        state_on_success(&SHRIJI_STATE);
+        state_on_success(&rt->state);
 
         return value;
     }
-
 case AST_UPDATE: {
 
-    /* normal variable update: x = expr */
     if (node->name[0] != '\0') {
 
         if (!env_exists(env, node->name)) {
@@ -848,30 +827,30 @@ case AST_UPDATE: {
             return value_null();
         }
 
-        Value value = eval(node->value, env);
-        env_update(env, node->name, value);
+        Value value = eval(node->value, env, rt);
+
+        /* ✅ FINAL FIX */
+        env_set(env, node->name, value);
 
         event_fire(EVENT_ASSIGNMENT, node->name);
-        state_on_success(&SHRIJI_STATE);
+        state_on_success(&rt->state);
 
         return value;
     }
 
-    /* future: dict/list update will come here */
     shriji_error(
         E_ASSIGN_01,
         "update",
         "invalid update target",
         "use: x = expr"
     );
+
     return value_null();
 }
 
-
-
 case AST_BINARY: {
-    Value Lv = eval(node->left, env);
-    Value Rv = eval(node->right, env);
+    Value Lv = eval(node->left, env, rt);
+    Value Rv = eval(node->right, env, rt);
 
     char op = node->op[0];
 
@@ -880,7 +859,7 @@ case AST_BINARY: {
     ─────────────────────────────────────────────── */
     if (Lv.type != Rv.type) {
         shriji_error(
-            E_PARSE_02,
+            E_RUNTIME_TYPE_MISMATCH,
             "binary",
             "type mismatch in expression",
             "same type ke values use karein"
@@ -911,7 +890,7 @@ case AST_BINARY: {
         if (op == '!') return value_number(L != R); /* != */
 
         shriji_error(
-            E_PARSE_02,
+            E_RUNTIME_01,
             "binary",
             "unknown numeric operator",
             NULL
@@ -937,7 +916,7 @@ case AST_BINARY: {
         if (op == 'L') return value_number(cmp <= 0); /* <= */
 
         shriji_error(
-            E_PARSE_02,
+            E_RUNTIME_01,
             "binary",
             "string ke saath sirf comparison allowed hai",
             "use: == != < > <= >="
@@ -954,152 +933,107 @@ case AST_BINARY: {
         "ye operation is type ke liye allowed nahi hai",
         "sirf number ya string comparison supported hai"
     );
-    SHRIJI_STATE.safety = STATE_CRITICAL;
+    rt->state.safety = STATE_CRITICAL;
                 return value_null();
 }
 
 
     case AST_NOT: {
-        Value v = eval(node->left, env);
+        Value v = eval(node->left, env, rt);
         return value_number(!value_to_number(v));
     }
 
     case AST_IF: {
-        Value condv = eval(node->condition, env);
+        Value condv = eval(node->condition, env, rt);
         double cond = value_to_number(condv);
 
         if (cond)
-            return eval(node->left, env);
+            return eval(node->left, env, rt);
         else if (node->else_block)
-            return eval(node->else_block, env);
+            return eval(node->else_block, env, rt);
 
         return value_null();
     }
 
-
-
 case AST_WHILE: {
 
-    LOOP_DEPTH++;
+    rt->loop_depth++;
 
     Value last = value_null();
     int local_guard = 0;
 
-    while (value_to_number(eval(node->condition, env))) {
+    while (value_to_number(eval(node->condition, env, rt))) {
 
-        CONTINUE_FLAG = 0;
+        rt->continue_flag = 0;
 
-        last = eval(node->body, env);
+        last = eval(node->body, env, rt);
 
-        /* return must exit loop immediately */
-        if (RETURN_FLAG) {
-            LOOP_DEPTH--;
-            return RETURN_VALUE;
+        /* return exits loop */
+        if (rt->return_flag) {
+            rt->loop_depth--;
+            return rt->return_value;
         }
 
-        if (CONTINUE_FLAG) {
-            CONTINUE_FLAG = 0;
+        if (rt->continue_flag) {
+            rt->continue_flag = 0;
             continue;
         }
 
-        if (BREAK_FLAG) {
-            BREAK_FLAG = 0;
+        if (rt->break_flag) {
+            rt->break_flag = 0;
             break;
         }
 
         if (++local_guard > 1000000) {
             shriji_error(
-                E_PARSE_02,
+                E_RUNTIME_01,
                 "loop",
                 "infinite loop detected",
                 "use rukja or fix condition"
             );
-            SHRIJI_STATE.safety = STATE_CRITICAL;
+            rt->state.safety = STATE_CRITICAL;
             break;
         }
     }
 
-    LOOP_DEPTH--;
+    rt->loop_depth--;
     return last;
 }
-
-
-
 
 case AST_BLOCK: {
     Value last = value_null();
 
-    /* ✅ new scope for { } */
-    env_push_scope(env);
+/* 🔥 NO NEW SCOPE FOR BLOCK */
+for (int i = 0; i < node->stmt_count; i++) {
 
-    for (int i = 0; i < node->stmt_count; i++) {
+    last = eval(node->statements[i], env, rt);
 
-        last = eval(node->statements[i], env);
+    if (rt->return_flag || rt->break_flag || rt->continue_flag)
+        break;
+}
 
-        if (RETURN_FLAG || BREAK_FLAG || CONTINUE_FLAG)
-            break;
-    }
+if (rt->return_flag)
+    return rt->return_value;
 
-    /* ✅ scope ends */
-    env_pop_scope(env);
+return last;
 
-    if (RETURN_FLAG)
-        return RETURN_VALUE;
-
-    return last;
 }
 
 case AST_PROGRAM: {
     Value last = value_null();
 
 
-  /*──────────────────────────────────────────────
-  OPTION A — HUMAN SENTENCE INTERCEPT (L3)
-──────────────────────────────────────────────*/
-int all_identifiers = 1;
-for (int i = 0; i < node->stmt_count; i++) {
-    if (!node->statements[i] ||
-        node->statements[i]->type != AST_IDENTIFIER) {
-        all_identifiers = 0;
-        break;
-    }
-}
-
-if (all_identifiers && node->stmt_count > 0) {
-    char msg[512] = {0};
-    size_t pos = 0;
-
-    for (int i = 0; i < node->stmt_count; i++) {
-        const char *w = node->statements[i]->name;
-        if (!w) continue;
-
-        size_t len = strlen(w);
-        if (pos + len + 2 >= sizeof(msg))
-            break;
-
-        memcpy(msg + pos, w, len);
-        pos += len;
-        msg[pos++] = ' ';
-    }
-
-    msg[pos ? pos - 1 : 0] = '\0';
-
-    ai_router_process(msg);
-    return value_null();
-}
-
-
-
     for (int i = 0; i < node->stmt_count; i++) {
 
-        last = eval(node->statements[i], env);
+        last = eval(node->statements[i], env ,rt);
 
-        if (RETURN_FLAG || BREAK_FLAG || CONTINUE_FLAG)
-            break;
+/* 🔥 ONLY break for loop control, not function return */
+if (rt->break_flag || rt->continue_flag)
+    break;
     }
 
-    if (RETURN_FLAG)
-        return RETURN_VALUE;
+    if (rt->return_flag)
+        return rt->return_value;
 
     return last;
 }
@@ -1152,19 +1086,22 @@ case AST_IMPORT: {
         ASTNode *prog = parse_program(buf);
         free(buf);
 
-        if (!prog) {
-            shriji_error(
-                E_PARSE_02,
-                "import",
-                "parse failed",
-                "check imported file syntax"
-            );
-            return value_null();
-        }
-
+if (!prog) {
+    /* 🔥 DO NOT STOP — allow partial execution */
+    shriji_error(
+        E_PARSE_02,
+        "import",
+        "partial parse — continuing execution",
+        "some lines may have errors"
+    );
+}
         /* run imported program in SAME env */
-        Value out = eval(prog, env);
-        return out;
+if (prog) {
+    return eval(prog, env, rt);
+}
+
+return value_null();
+
     }
 
 case AST_COMMAND: {
@@ -1184,7 +1121,7 @@ case AST_COMMAND: {
     if (cmd == CMD_BOLO) {
         Value v = value_null();
         if (node->value)
-            v = eval(node->value, env);
+            v = eval(node->value, env , rt);
 
         if (v.type == VAL_STRING)
             printf("%s\n", v.string ? v.string : "");
@@ -1197,32 +1134,36 @@ case AST_COMMAND: {
         return value_null();
     }
 
-    /* AI MODULES → ai_router */
-    if (cmd == CMD_SAKHI || cmd == CMD_NIYU ||
-        cmd == CMD_MIRA  || cmd == CMD_KAVYA) {
+/* AI MODULES → ai_router (STEP-13 REAL OUTPUT) */
+if (cmd == CMD_SAKHI || cmd == CMD_NIYU ||
+    cmd == CMD_MIRA  || cmd == CMD_KAVYA) {
 
-        Value v = value_null();
-        if (node->value)
-            v = eval(node->value, env);
+    Value v = value_null();
+    if (node->value)
+        v = eval(node->value, env , rt);
 
-        const char *arg = "";
-        char tmp[64] = {0};
+    const char *arg = "";
+    char tmp[64] = {0};
 
-        if (v.type == VAL_STRING && v.string)
-            arg = strip_quotes(v.string);
-        else if (v.type == VAL_NUMBER) {
-            snprintf(tmp, sizeof(tmp), "%g", v.number);
-            arg = tmp;
-        }
-
-        char msg[256];
-        snprintf(msg, sizeof(msg), "%s %s",
-                 node->command_name, arg);
-
-        ai_router_process(msg);
-        value_free(&v);
-        return value_null();
+    if (v.type == VAL_STRING && v.string)
+        arg = strip_quotes(v.string);
+    else if (v.type == VAL_NUMBER) {
+        snprintf(tmp, sizeof(tmp), "%g", v.number);
+        arg = tmp;
     }
+
+    ShrijiBridgePacket pkt;
+    pkt.text   = arg;
+    pkt.lang   = SHRIJI_LANG_AUTO;
+    pkt.source = SHRIJI_SRC_REPL;
+
+    L3Response r = ai_router_dispatch(&pkt);
+    if (r.text && *r.text)
+        printf("%s\n", r.text);
+
+    value_free(&v);
+    return value_null();
+}
 
     /* DEFAULT COMMAND */
     return value_number(execute_command(cmd));
@@ -1236,15 +1177,12 @@ default:
 /*──────────────────────────────────────────────────────────────
  | PROGRAM RUNNER
  *──────────────────────────────────────────────────────────────*/
-Value run_program(ASTNode *program, Env *env)
+Value run_program(ASTNode *program, Env *env, ShrijiRuntime *rt)
 {
-    BREAK_FLAG = 0;
-    CONTINUE_FLAG = 0;
-    RETURN_FLAG = 0;
-    RETURN_VALUE = value_null();
-
     if (!program || program->type != AST_PROGRAM)
         return value_null();
 
-    return eval(program, env);
+    runtime_reset(rt);
+    event_bind_runtime(rt);
+    return eval(program, env, rt);
 }

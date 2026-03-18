@@ -1,6 +1,7 @@
 #ifndef EVENT_H
 #define EVENT_H
 
+#include "runtime.h"
 /*──────────────────────────────────────────────────────────────
  |  SHRIJILANG — EVENT SYSTEM
  |
@@ -55,5 +56,6 @@ typedef struct {
  |  EVENT API
  *────────────────────────────────────────────────────────────*/
 void event_fire(EventType type, const char *context);
+void event_bind_runtime(ShrijiRuntime *rt);
 
 #endif /* EVENT_H */

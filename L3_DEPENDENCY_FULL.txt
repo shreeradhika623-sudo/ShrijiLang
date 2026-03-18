@@ -1,0 +1,515 @@
+/* RADHE_RADHE//SHREE JI MR-MR. MANIKPURI */
+
+
+#include <stdio.h>
+#include <string.h>
+#include "../include/error.h"
+
+/*──────────────────────────────────────────────
+  GLOBAL ERROR STATE
+──────────────────────────────────────────────*/
+int error_reported = 0;
+
+/*──────────────────────────────────────────────
+  LAST ERROR SNAPSHOT
+──────────────────────────────────────────────*/
+static ShrijiErrorInfo LAST_ERROR = {0};
+
+/*──────────────────────────────────────────────
+  error code → string
+──────────────────────────────────────────────*/
+static const char *error_code_str(ShrijiErrorCode code)
+{
+    switch (code) {
+        case E_ASSIGN_01:  return "E_ASSIGN_01";
+        case E_ASSIGN_02:  return "E_ASSIGN_02";   // ✅ FIX ADDED
+        case E_PARSE_01:   return "E_PARSE_01";
+        case E_PARSE_02:   return "E_PARSE_02";
+        case E_IF_01:      return "E_IF_01";
+        case E_RUNTIME_01: return "E_RUNTIME_01";
+        default:           return "E_UNKNOWN";
+    }
+}
+
+/*──────────────────────────────────────────────
+  ERROR (no location)
+──────────────────────────────────────────────*/
+void shriji_error(
+    ShrijiErrorCode code,
+    const char *context,
+    const char *message,
+    const char *hint
+)
+{
+    error_reported = 1;
+
+    LAST_ERROR.code = code;
+    LAST_ERROR.context = context;
+    LAST_ERROR.message = message;
+    LAST_ERROR.hint = hint;
+    LAST_ERROR.has_location = 0;
+    LAST_ERROR.line = 0;
+    LAST_ERROR.col = 0;
+
+    printf("\n⛔ %s | %s → %s\n",
+           error_code_str(code),
+           context ? context : "",
+           message ? message : "");
+
+    if (hint && hint[0])
+        printf("   hint: %s\n", hint);
+
+    printf("\n");
+}
+
+/*──────────────────────────────────────────────
+  ERROR with token location
+──────────────────────────────────────────────*/
+void shriji_error_at(
+    Token tok,
+    ShrijiErrorCode code,
+    const char *context,
+    const char *message,
+    const char *hint
+)
+{
+    error_reported = 1;
+
+    LAST_ERROR.code = code;
+    LAST_ERROR.context = context;
+    LAST_ERROR.message = message;
+    LAST_ERROR.hint = hint;
+    LAST_ERROR.has_location = 1;
+    LAST_ERROR.line = tok.line;
+    LAST_ERROR.col = tok.col;
+
+    printf("\n⛔ %s | %s → %s (line %d, col %d)\n",
+           error_code_str(code),
+           context ? context : "",
+           message ? message : "",
+           tok.line,
+           tok.col);
+
+    if (tok.start && tok.length > 0)
+        printf("   token: '%.*s'\n", tok.length, tok.start);
+
+    if (hint && hint[0])
+        printf("   hint: %s\n", hint);
+
+    printf("\n");
+}
+
+/*──────────────────────────────────────────────
+  LAST ERROR ACCESS
+──────────────────────────────────────────────*/
+const ShrijiErrorInfo *shriji_last_error(void)
+{
+    if (!error_reported)
+        return NULL;
+    return &LAST_ERROR;
+}
+
+/*──────────────────────────────────────────────
+  GUIDE / SAMJHAO
+──────────────────────────────────────────────*/
+void shriji_print_guide(void)
+{
+    const ShrijiErrorInfo *e = shriji_last_error();
+
+    if (!e) {
+        printf("\n— Samjhao —\nKoi error pending nahi hai.\n\n");
+        return;
+    }
+
+    printf("\n— Samjhao —\n");
+
+    /* 🔹 Missing value after '=' */
+    if (e->code == E_ASSIGN_02) {
+        printf(
+            "Kya hua:\n"
+            "  '=' ke baad value nahi likhi gayi.\n\n"
+            "Example galat:\n"
+            "  a =\n\n"
+            "Sahi tarika:\n"
+            "  a = 10\n\n"
+        );
+        return;
+    }
+
+    /* 🔹 Generic parse issue */
+    if (e->code == E_PARSE_02 &&
+        e->context &&
+        strcmp(e->context, "statement") == 0)
+    {
+        printf(
+            "Statement samajhne me dikkat aayi.\n"
+            "Syntax simple rakho.\n\n"
+        );
+        return;
+    }
+
+    /* 🔹 Fallback */
+    printf("Kya hua:\n  %s\n\n",
+           e->message ? e->message : "Kuch samajh nahi aaya");
+
+    if (e->has_location)
+        printf("Kahan:\n  line %d, col %d\n\n", e->line, e->col);
+
+    if (e->hint && e->hint[0])
+        printf("Hint:\n  %s\n\n", e->hint);
+
+    printf("Fix karo aur dobara try karo 🙂\n\n");
+}
+
+#include <stdio.h>
+#include <string.h>
+
+#include "../include/ai_router.h"
+#include "../include/ai_intent.h"
+
+#include "../pragya/contracts/l3_request.h"
+#include "../pragya/contracts/l3_response.h"
+#include "../pragya/contracts/l3_intent.h"
+
+#include "../pragya/niyu/niyu_contract.h"
+#include "../pragya/sakhi/sakhi_contract.h"
+#include "../pragya/mira/mira_contract.h"
+
+/*──────────────────────────────────────────────
+  AIIntent → L3Intent mapping
+──────────────────────────────────────────────*/
+static L3Intent map_ai_to_l3_intent(AIIntent ai)
+{
+    switch (ai)
+    {
+        case AI_INTENT_EXPLAIN:  return L3_INTENT_EXPLAIN;
+        case AI_INTENT_WHY:      return L3_INTENT_WHY;
+        case AI_INTENT_CALC:     return L3_INTENT_CALC;
+        case AI_INTENT_EMOTION:  return L3_INTENT_EMOTION;
+        default:                 return L3_INTENT_UNKNOWN;
+    }
+}
+
+/*──────────────────────────────────────────────
+  Main Router Entry
+──────────────────────────────────────────────*/
+L3Response ai_router_dispatch(const ShrijiBridgePacket *pkt)
+{
+    L3Response resp;
+    resp.text = NULL;
+    resp.success = 0;
+
+    if (!pkt || !pkt->text)
+        return resp;
+
+    /* STEP-1: detect AI intent (raw text) */
+    AIIntent ai_intent = ai_detect_intent(pkt->text);
+
+    /* STEP-2: map to L3 intent */
+    L3Intent l3_intent = map_ai_to_l3_intent(ai_intent);
+
+    /* STEP-3: build L3 request */
+    L3Request req;
+    req.raw_input = pkt->text;
+    req.intent    = l3_intent;
+
+    /* STEP-4: route */
+
+    /* CALC / LOGIC → NIYU (think only) */
+    if (l3_intent == L3_INTENT_CALC)
+    {
+        NiyuResult *result = niyu_think(&req);
+        resp = sakhi_speak(&req, result);
+        niyu_free_result(result);
+        return resp;
+    }
+
+    /* EXPLAIN / WHY / EMOTION → SAKHI */
+    if (l3_intent == L3_INTENT_EXPLAIN ||
+        l3_intent == L3_INTENT_WHY ||
+        l3_intent == L3_INTENT_EMOTION)
+    {
+        resp = sakhi_speak(&req, NULL);
+        return resp;
+    }
+
+    /* TEACH → MIRA */
+    if (l3_intent == L3_INTENT_TEACH)
+    {
+        resp = mira_teach(&req);
+        return resp;
+    }
+
+    /* FALLBACK */
+    resp.text = "Mujhe samajh nahi aaya. Thoda aur clear likho 🙂";
+    resp.success = 0;
+    return resp;
+}
+#include <stdio.h>
+#include <string.h>
+
+#include "../include/ai_router.h"
+#include "../include/ai_intent.h"
+
+#include "../pragya/contracts/l3_request.h"
+#include "../pragya/contracts/l3_response.h"
+#include "../pragya/contracts/l3_intent.h"
+
+#include "../pragya/niyu/niyu_contract.h"
+#include "../pragya/sakhi/sakhi_contract.h"
+#include "../pragya/mira/mira_contract.h"
+
+/*──────────────────────────────────────────────
+  AIIntent → L3Intent mapping
+──────────────────────────────────────────────*/
+static L3Intent map_ai_to_l3_intent(AIIntent ai)
+{
+    switch (ai)
+    {
+        case AI_INTENT_EXPLAIN:  return L3_INTENT_EXPLAIN;
+        case AI_INTENT_WHY:      return L3_INTENT_WHY;
+        case AI_INTENT_CALC:     return L3_INTENT_CALC;
+        case AI_INTENT_EMOTION:  return L3_INTENT_EMOTION;
+        default:                 return L3_INTENT_UNKNOWN;
+    }
+}
+
+/*──────────────────────────────────────────────
+  Main Router Entry
+──────────────────────────────────────────────*/
+L3Response ai_router_dispatch(const ShrijiBridgePacket *pkt)
+{
+    L3Response resp;
+    resp.text = NULL;
+    resp.success = 0;
+
+    if (!pkt || !pkt->text)
+        return resp;
+
+    /* STEP-1: detect AI intent (raw text) */
+    AIIntent ai_intent = ai_detect_intent(pkt->text);
+
+    /* STEP-2: map to L3 intent */
+    L3Intent l3_intent = map_ai_to_l3_intent(ai_intent);
+
+    /* STEP-3: build L3 request */
+    L3Request req;
+    req.raw_input = pkt->text;
+    req.intent    = l3_intent;
+
+    /* STEP-4: route */
+
+    /* CALC / LOGIC → NIYU (think only) */
+    if (l3_intent == L3_INTENT_CALC)
+    {
+        NiyuResult *result = niyu_think(&req);
+        resp = sakhi_speak(&req, result);
+        niyu_free_result(result);
+        return resp;
+    }
+
+    /* EXPLAIN / WHY / EMOTION → SAKHI */
+    if (l3_intent == L3_INTENT_EXPLAIN ||
+        l3_intent == L3_INTENT_WHY ||
+        l3_intent == L3_INTENT_EMOTION)
+    {
+        resp = sakhi_speak(&req, NULL);
+        return resp;
+    }
+
+    /* TEACH → MIRA */
+    if (l3_intent == L3_INTENT_TEACH)
+    {
+        resp = mira_teach(&req);
+        return resp;
+    }
+
+    /* FALLBACK */
+    resp.text = "Mujhe samajh nahi aaya. Thoda aur clear likho 🙂";
+    resp.success = 0;
+    return resp;
+}
+#include "niyu_core.h"
+#include "niyu_contract.h"
+#include "../../include/smriti.h"
+#include <stdlib.h>
+
+/*
+ Niyu = THINK ONLY
+ - No speaking
+ - No routing
+ - No teaching
+*/
+
+/* ===============================
+   PRIVATE RESULT STRUCTURE
+   (OPAQUE TO OUTSIDE WORLD)
+   =============================== */
+struct NiyuResult
+{
+    int placeholder; /* future: real internal data */
+};
+
+/* ===============================
+   CORE THINK FUNCTION
+   =============================== */
+NiyuResult *niyu_think(const L3Request *req)
+{
+    /* allocate using PRIVATE knowledge */
+    struct NiyuResult *result =
+        (struct NiyuResult *)malloc(sizeof(struct NiyuResult));
+
+    if (!result)
+        return NULL;
+
+    result->placeholder = 0;
+
+    if (!req || !req->raw_input)
+        return (NiyuResult *)result;
+
+    /* STEP-13: READ-ONLY Smriti access */
+    unsigned long turn = smriti_get_turn();
+    const char *last   = smriti_get_last_input();
+    int last_intent    = smriti_get_last_intent();
+
+    /* silent read — no behavior change */
+    (void)turn;
+    (void)last;
+    (void)last_intent;
+
+    /*
+      No calculation yet.
+      This step only validates:
+      Niyu CAN read context without breaking opacity.
+    */
+
+    return (NiyuResult *)result;
+}
+
+/* ===============================
+   FREE FUNCTION (ROUTER CALLS)
+   =============================== */
+void niyu_free_result(NiyuResult *result)
+{
+    if (!result)
+        return;
+
+    /* free via private struct */
+    free((struct NiyuResult *)result);
+}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../contracts/l3_request.h"
+#include "../contracts/l3_response.h"
+#include "sakhi_contract.h"
+
+/*
+ * SAKHI CORE — STEP-20
+ *
+ * Goal:
+ * - Soft, confidence-friendly language
+ * - No judgement words (galat, wrong, mistake)
+ * - Clear + calm guidance
+ * - Hinglish default (English words allowed, pressure nahi)
+ */
+
+static L3Response sakhi_soft_reply(const char *text)
+{
+    L3Response r;
+    r.text = text;
+    r.success = 1;
+    return r;
+}
+
+L3Response sakhi_speak(const L3Request *request,
+                       const NiyuResult *result)
+{
+    (void)result; /* Sakhi never thinks */
+
+    if (!request || !request->raw_input) {
+        return sakhi_soft_reply(
+            "Thoda sa input miss ho gaya lagta hai. Ek baar phir try karoge?"
+        );
+    }
+
+    const char *in = request->raw_input;
+
+    /* ─────────────────────────────
+       CALC / NORMAL RESPONSE
+    ───────────────────────────── */
+    if (request->intent == L3_INTENT_CALC) {
+        return sakhi_soft_reply(
+            "Theek hai, main calculate karke dikha rahi hoon 😊"
+        );
+    }
+
+    /* ─────────────────────────────
+       EXPLAIN / WHY
+    ───────────────────────────── */
+    if (request->intent == L3_INTENT_EXPLAIN ||
+        request->intent == L3_INTENT_WHY) {
+
+        return sakhi_soft_reply(
+            "Chalo isko aaram se samajhte hain. Step by step dekhenge, tension nahi 😊"
+        );
+    }
+
+    /* ─────────────────────────────
+       EMOTION
+    ───────────────────────────── */
+    if (request->intent == L3_INTENT_EMOTION) {
+        return sakhi_soft_reply(
+            "Lagta hai thoda heavy feel ho raha hai. Koi baat nahi, hum yahin hain 🙂"
+        );
+    }
+
+    /* ─────────────────────────────
+       DEFAULT (safe, neutral)
+    ───────────────────────────── */
+    (void)in;
+    return sakhi_soft_reply(
+        "Main sun rahi hoon. Thoda clear likhoge to aur achha ho jayega 🙂"
+    );
+}
+#include "mira_core.h"
+#include "mira_contract.h"
+#include "../contracts/l3_response.h"
+#include "../../include/smriti.h"
+#include <stddef.h>
+
+/*
+ Mira = TEACH ONLY
+ - No routing
+ - No calculation
+ - Reads context to prepare explanations
+*/
+
+L3Response mira_teach(const L3Request *req)
+{
+    L3Response res;
+    res.text = NULL;
+    res.success = 0;
+
+    if (!req || !req->raw_input)
+        return res;
+
+    /* STEP-14: READ-ONLY Smriti access */
+    unsigned long turn = smriti_get_turn();
+    const char *last   = smriti_get_last_input();
+    int last_intent    = smriti_get_last_intent();
+
+    /* silent read — no behavior change yet */
+    (void)turn;
+    (void)last;
+    (void)last_intent;
+
+    /*
+      No teaching output yet.
+      This step only proves:
+      Mira CAN read context safely.
+    */
+
+    return res;
+}
