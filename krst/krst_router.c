@@ -137,18 +137,23 @@ void krst_route_request(KRSTRequest *req)
 
     avastha.raw_text = req->input_text;
 
-      avastha.raw_text = req->input_text;
-
 /*  NEW: pass input mode */
     avastha.is_program_mode = req->is_program_mode;
 
 /* ===== KRST CORE ===== */
 krst_process(&avastha);
 
-/* ===== ERROR INTELLIGENCE FALLBACK ===== */
+/* ===== ERROR INTELLIGENCE FALLBACK (FIXED) ===== */
 if (!avastha.has_correction && error_reported)
 {
-    shriji_error_intelligence(&avastha, &LAST_ERROR, NULL);
+    extern int GYAAN_ALREADY_PRINTED;
+
+    /* 🔒 duplicate guard */
+    if (!GYAAN_ALREADY_PRINTED)
+    {
+        shriji_error_intelligence(&avastha, &LAST_ERROR, NULL);
+        GYAAN_ALREADY_PRINTED = 1;
+    }
 }
 
 /* ===== RETURN CORRECTION ===== */
@@ -162,5 +167,9 @@ if (avastha.has_correction)
 
     req->corrected_text[
         sizeof(req->corrected_text) - 1] = '\0';
-}
+
+
+     /* ===== PROPAGATE STOP EXECUTION  ===== */
+req->stop_execution = avastha.stop_execution;
+  }
 }

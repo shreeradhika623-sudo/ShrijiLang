@@ -56,7 +56,7 @@ src/user_config.c \
 src/nirman.c \
 src/normalize_engine.c \
 src/nirman_flow_engine.c \
-
+src/value_print.c \
 # ============================================================
 # OUTPUT
 # ============================================================

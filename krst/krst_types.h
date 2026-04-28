@@ -50,6 +50,7 @@ typedef struct
 
     char corrected_text[512];
     int has_correction;
+     int stop_execution;
 
 } KRSTRequest;
 /* ==============================

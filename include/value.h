@@ -262,5 +262,6 @@ static inline void value_free(Value *v)
     v->dict_count = 0;
 }
 
+void value_print(Value v);
 
 #endif

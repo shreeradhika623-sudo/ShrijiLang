@@ -169,16 +169,24 @@ void shriji_error_intelligence(
     if (!avastha || !err || !avastha->raw_text)
         return;
 
+    /* 🔒 GLOBAL STOP (avoid duplicate flow) */
+    if (error_reported && avastha->stop_execution)
+        return;
+
     const char *text = avastha->raw_text;
 
     /* ===== VALIDATION ===== */
 
-    if (!is_valid_input(text))
+    if (!is_valid_input(text) && !error_reported)
     {
         avastha->stop_execution = 1;
+        avastha->has_correction = 0;
 
         int pos = (err && err->col > 0) ? err->col - 1 : 0;
-        print_pointer(text, pos);
+
+        if (!avastha->stop_execution)
+            print_pointer(text, pos);
+
         return;
     }
 
@@ -217,19 +225,20 @@ void shriji_error_intelligence(
             if (choice == 'e')
             {
                 avastha->stop_execution = 1;
+                avastha->has_correction = 0;
 
                 printf("\nEdit:\n%s\n", text);
 
 #ifndef _WIN32
                 snprintf(safe_buffer, sizeof(safe_buffer), "%s", text);
                 prefill_text = safe_buffer;
-
                 rl_startup_hook = prefill_hook;
 #endif
                 return;
             }
 
             avastha->stop_execution = 1;
+            avastha->has_correction = 0;
             return;
         }
     }
@@ -238,7 +247,7 @@ void shriji_error_intelligence(
 
     char filtered[256];
 
-    if (filter_operators(text, filtered))
+    if (filter_operators(text, filtered) && !error_reported)
     {
         printf("\nSuggestion: %s\n", filtered);
         printf("\nEdit (E) / Ignore (I): ");
@@ -248,19 +257,20 @@ void shriji_error_intelligence(
         if (choice == 'e')
         {
             avastha->stop_execution = 1;
+            avastha->has_correction = 0;
 
             printf("\nEdit:\n%s\n", text);
 
 #ifndef _WIN32
             snprintf(safe_buffer, sizeof(safe_buffer), "%s", text);
             prefill_text = safe_buffer;
-
             rl_startup_hook = prefill_hook;
 #endif
             return;
         }
 
         avastha->stop_execution = 1;
+        avastha->has_correction = 0;
         return;
     }
 
@@ -268,7 +278,9 @@ void shriji_error_intelligence(
 
     int pos = (err && err->col > 0) ? err->col - 1 : 0;
 
-    print_pointer(text, pos);
+    if (!avastha->stop_execution)
+        print_pointer(text, pos);
 
     avastha->stop_execution = 1;
+    avastha->has_correction = 0;
 }

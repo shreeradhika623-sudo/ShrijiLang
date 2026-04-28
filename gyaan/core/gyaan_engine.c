@@ -6,6 +6,8 @@
 #include <string.h>
 #include "../../include/error.h"
 
+/* 🌸 GLOBAL PRINT CONTROL */
+
 typedef struct {
     int code;
 
@@ -26,7 +28,7 @@ static const char* safe(const char *s)
     return (s && *s) ? s : "N/A";
 }
 
-void gyaan_print(const ShrijiErrorInfo *err)
+    void gyaan_print(const ShrijiErrorInfo *err)
 {
     if (!err) return;
 
@@ -38,6 +40,7 @@ void gyaan_print(const ShrijiErrorInfo *err)
             /* allow fallback */
         }
     }
+
 
     /* FALLBACK (NO RULE FOUND) */
     if (!r) {

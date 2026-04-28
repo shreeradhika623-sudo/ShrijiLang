@@ -21,6 +21,7 @@
 
 #include "../include/user_config.h"
 #include "../include/env.h"
+#include "../include/fix_engine.h"
 
 #ifdef SHRIJI_ENABLE_MASTER_TOKENS
 #include "lang/token_master.h"
@@ -76,21 +77,25 @@ static int state_allows_execution(ShrijiRuntime *rt)
  | SAFE DIVISION
  *──────────────────────────────────────────────────────────────*/
 static double safe_div(double a, double b)
-
 {
     if (b == 0) {
         event_fire(EVENT_ERROR, "division by zero");
+
         shriji_error(
             E_RUNTIME_DIV_ZERO,
             "division",
-            "division by zero",
-            "denominator must not be zero"
+            "0 se divide nahi kar sakte",
+            "denominator 0 nahi hona chahiye"
         );
+
+        if (current_runtime)
+            current_runtime->error_flag = 1;
+
         return 0;
     }
+
     return a / b;
 }
-
 /*──────────────────────────────────────────────────────────────
  | SAFE MODULO
  *──────────────────────────────────────────────────────────────*/
@@ -145,6 +150,8 @@ static const char *strip_quotes(const char *s)
  *──────────────────────────────────────────────────────────────*/
 Value shriji_execute_line(const char *line, Env *env, ShrijiRuntime *rt)
 {
+    (void)env;
+
     if (!line || !*line) return value_null();
 
     while (*line == ' ' || *line == '\t') line++;
@@ -153,25 +160,39 @@ Value shriji_execute_line(const char *line, Env *env, ShrijiRuntime *rt)
     if (DEV_MODE)
         printf("[KRST] Input: %s\n", line);
 
-    /*  FIXED: wrapper use karo */
-    ASTNode *node = parse_program(line);
+    /*  USE FIX ENGINE */
+    int was_fixed = 0;
+    int penalty = 0;
 
+char final_input[512];
+
+ASTNode *node = language_execute_with_fix(
+    line,
+    final_input,
+    &was_fixed,
+    &penalty
+);
+
+    /*  DO NOT RESET error_reported */
     if (!node || error_reported)
     {
         if (rt) {
             rt->error_flag = 1;
         }
 
-        error_reported = 0;
         return value_null();
     }
 
-    return eval(node, env, rt);
+    /*  STILL NO EXECUTION HERE */
+    return value_null();
 }
-
 
 Value eval(ASTNode *node, Env *env, ShrijiRuntime *rt)
 {
+    /*  GLOBAL HARD STOP — NO DUPLICATE EXECUTION */
+    if (error_reported || (rt && rt->error_flag))
+        return value_null();
+
     static int state_initialized = 0;
 
     if (!state_initialized) {
@@ -190,6 +211,7 @@ Value eval(ASTNode *node, Env *env, ShrijiRuntime *rt)
         node->type != AST_PROGRAM) {
         rt->state.steps_used++;
     }
+
 
     if (rt->state.steps_used > rt->state.max_steps) {
         shriji_error(
@@ -864,6 +886,10 @@ cleanup:
 
 case AST_IDENTIFIER: {
 
+    /* 🔒 HARD STOP */
+    if (error_reported || (rt && rt->error_flag))
+        return value_null();
+
     const char *name = node->name;
 
     /* ===== ENV CHECK ===== */
@@ -894,21 +920,26 @@ case AST_IDENTIFIER: {
         "use mavi x = ... pehle likhiye"
     );
 
+     if (rt) rt->error_flag = 1;
     return value_null();
 }
 
-
 case AST_ASSIGNMENT: {
 
+    /* STEP 1: Evaluate RHS */
     Value value = eval(node->value, env, rt);
 
-    /* ===== FIX: SAFE COPY ===== */
-    Value stored = value_copy(value);
+    /* 🔒 STOP if error */
+    if (error_reported || rt->error_flag) {
+        value_free(&value);
+        return value_null();
+    }
 
-    /* ===== ENV SAVE ===== */
+    /* STEP 2: Store SAFE COPY */
+    Value stored = value_copy(value);
     env_update(env, node->name, stored);
 
-    /* ===== SMRITI SAVE ===== */
+    /* STEP 3: Optional smriti */
     if (value.type == VAL_NUMBER) {
         char buf[64];
         snprintf(buf, sizeof(buf), "%g", value.number);
@@ -918,13 +949,18 @@ case AST_ASSIGNMENT: {
         }
     }
 
+    /* STEP 4: Event + state */
     event_fire(EVENT_ASSIGNMENT, node->name);
     state_on_success(&rt->state);
 
-    return value;
+    /* STEP 5: Return SAFE COPY */
+    Value result = value_copy(value);
+
+    /* STEP 6: Free temp */
+    value_free(&value);
+
+    return result;
 }
-
-
 
 case AST_UPDATE: {
 
@@ -962,18 +998,36 @@ case AST_UPDATE: {
 }
 
 
-
-
 case AST_BINARY: {
+
+    /* 🔒 GLOBAL HARD STOP */
+    if (error_reported || rt->error_flag)
+        return value_null();
+
+    /* LEFT */
     Value Lv = eval(node->left, env, rt);
+
+    if (error_reported || rt->error_flag) {
+        value_free(&Lv);
+        return value_null();
+    }
+
+    /* RIGHT */
     Value Rv = eval(node->right, env, rt);
+
+    if (error_reported || rt->error_flag) {
+        value_free(&Lv);
+        value_free(&Rv);
+        return value_null();
+    }
 
     char op = node->op[0];
 
-    /* ───────────────────────────────────────────────
-       TYPE CHECK
-    ─────────────────────────────────────────────── */
+    /* ================= TYPE CHECK ================= */
     if (Lv.type != Rv.type) {
+        value_free(&Lv);
+        value_free(&Rv);
+
         shriji_error(
             E_RUNTIME_TYPE_MISMATCH,
             "binary",
@@ -983,28 +1037,29 @@ case AST_BINARY: {
         return value_null();
     }
 
-    /* ───────────────────────────────────────────────
-       NUMBER OPERATIONS
-    ─────────────────────────────────────────────── */
-/*  LOGICAL OPERATORS (GLOBAL — BEFORE TYPE CHECK) */
-if (op == '&') {
-    return value_bool(
-        value_is_truthy(Lv) && value_is_truthy(Rv)
-    );
-}
+    /* ================= LOGICAL ================= */
+    if (op == '&') {
+        int res = value_is_truthy(Lv) && value_is_truthy(Rv);
+        value_free(&Lv);
+        value_free(&Rv);
+        return value_bool(res);
+    }
 
-if (op == '|') {
-    return value_bool(
-        value_is_truthy(Lv) || value_is_truthy(Rv)
-    );
-}
+    if (op == '|') {
+        int res = value_is_truthy(Lv) || value_is_truthy(Rv);
+        value_free(&Lv);
+        value_free(&Rv);
+        return value_bool(res);
+    }
 
-
+    /* ================= NUMBER ================= */
     if (Lv.type == VAL_NUMBER) {
 
         double L = Lv.number;
         double R = Rv.number;
 
+        value_free(&Lv);
+        value_free(&Rv);
 
         if (op == '+') return value_number(L + R);
         if (op == '-') return value_number(L - R);
@@ -1028,9 +1083,7 @@ if (op == '|') {
         return value_null();
     }
 
-    /* ───────────────────────────────────────────────
-       STRING COMPARISON ONLY
-    ─────────────────────────────────────────────── */
+    /* ================= STRING ================= */
     if (Lv.type == VAL_STRING) {
 
         const char *L = Lv.string ? Lv.string : "";
@@ -1038,13 +1091,15 @@ if (op == '|') {
 
         int cmp = strcmp(L, R);
 
-         if (op == '=') return value_bool(cmp == 0);
-         if (op == '!') return value_bool(cmp != 0);
-         if (op == '>') return value_bool(cmp > 0);
-         if (op == '<') return value_bool(cmp < 0);
-         if (op == 'G') return value_bool(cmp >= 0);
-         if (op == 'L') return value_bool(cmp <= 0);
+        value_free(&Lv);
+        value_free(&Rv);
 
+        if (op == '=') return value_bool(cmp == 0);
+        if (op == '!') return value_bool(cmp != 0);
+        if (op == '>') return value_bool(cmp > 0);
+        if (op == '<') return value_bool(cmp < 0);
+        if (op == 'G') return value_bool(cmp >= 0);
+        if (op == 'L') return value_bool(cmp <= 0);
 
         shriji_error(
             E_RUNTIME_01,
@@ -1055,17 +1110,19 @@ if (op == '|') {
         return value_null();
     }
 
-    /* ───────────────────────────────────────────────
-       UNSUPPORTED TYPE
-    ─────────────────────────────────────────────── */
+    /* ================= UNSUPPORTED ================= */
+    value_free(&Lv);
+    value_free(&Rv);
+
     shriji_error(
         E_PARSE_02,
         "binary",
         "ye operation is type ke liye allowed nahi hai",
-        "sirf number ya string comparison supported hai"
+        "sirf number ya string supported hai"
     );
+
     rt->state.safety = STATE_CRITICAL;
-                return value_null();
+    return value_null();
 }
 
 
@@ -1187,29 +1244,35 @@ case AST_BLOCK: {
     return last;
 }
 
-
 case AST_PROGRAM: {
     Value last = value_null();
 
-
     for (int i = 0; i < node->stmt_count; i++) {
 
-        last = eval(node->statements[i], env ,rt);
+        Value temp = eval(node->statements[i], env ,rt);
 
-/* 🔥 ONLY break for loop control, not function return */
-if (rt->break_flag || rt->continue_flag)
-    break;
+        if (i == node->stmt_count - 1) {
+            last = temp;
+        } else {
+            value_free(&temp);
+        }
+
+        if (rt->break_flag || rt->continue_flag)
+            break;
     }
 
     if (rt->return_flag)
         return rt->return_value;
 
+    /* 🔒 NO PRINT HERE */
     return last;
 }
 
+
+
 case AST_IMPORT: {
 
-    /* 🔥 ENABLE ANALYSIS MODE */
+    /* ENABLE ANALYSIS MODE */
     shriji_set_error_mode(ERROR_MODE_COLLECT);
 
     /* import "file.sri" */
@@ -1274,13 +1337,13 @@ case AST_IMPORT: {
         return value_null();
     }
 
-    /* 🔥 RUN FULL PROGRAM */
+    /*  RUN FULL PROGRAM */
     Value result = eval(prog, env, rt);
 
-    /* 🔥 PRINT ALL ERRORS (ONE SHOT) */
+    /*  PRINT ALL ERRORS (ONE SHOT) */
     shriji_print_all_errors();
 
-    /* 🔥 BACK TO NORMAL MODE */
+    /*  BACK TO NORMAL MODE */
     shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
 
     return result;
@@ -1299,61 +1362,24 @@ case AST_COMMAND: {
         return value_null();
     }
 
-if (cmd == CMD_BOLO) {
-
-    /* 🔥 GLOBAL ERROR GUARD */
-    if (error_reported) {
+if (cmd == CMD_BOLO)
+{
+    if (error_reported)
         return value_null();
-    }
 
     Value v = value_null();
 
     if (node->value)
-        v = eval(node->value, env , rt);
+        v = eval(node->value, env, rt);
 
-/*  RUNTIME ERROR GUARD */
-if (rt->error_flag) {
-    return value_null();
-}
-
-if (v.type == VAL_STRING) {
-    printf("%s\n", v.string ? v.string : "");
-}
-else if (v.type == VAL_NUMBER) {
-    printf("%g\n", v.number);
-}
-else if (v.type == VAL_BOOL) {
-    printf("%d\n", v.boolean);
-}
-else if (v.type == VAL_LIST) {
-    printf("[");
-    for (int i = 0; i < v.count; i++) {
-        if (i > 0) printf(", ");
-
-        if (v.items[i].type == VAL_NUMBER)
-            printf("%g", v.items[i].number);
-        else if (v.items[i].type == VAL_STRING)
-            printf("\"%s\"", v.items[i].string);
-        else if (v.items[i].type == VAL_BOOL)
-            printf("%d", v.items[i].boolean);
-        else
-            printf("?");
+    if (rt->error_flag) {
+        value_free(&v);
+        return value_null();
     }
-    printf("]\n");
-}
-else {
-    /*  DOUBLE GUARD */
-    if (!rt->error_flag && !error_reported) {
-        printf("0\n");
-    }
-}
-
-
 
     smriti_session_set_last(v);
 
-    value_free(&v);
-    return value_null();
+    return v;   // 🔥 RETURN VALUE, DO NOT PRINT
 }
 
 /* AI MODULES → ai_router (STEP-13 REAL OUTPUT) */
@@ -1381,7 +1407,6 @@ if (cmd == CMD_SAKHI || cmd == CMD_NIYU ||
 
     L3Response r = ai_router_dispatch(&pkt);
     if (r.text && *r.text)
-        printf("%s\n", r.text);
 
     value_free(&v);
     return value_null();

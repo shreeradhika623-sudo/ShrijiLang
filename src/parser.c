@@ -69,22 +69,6 @@ static Token prev_token;
 
 static const char *current_source = NULL;
 
-static void parser_error(
-    Token tok,
-    ShrijiErrorCode code,
-    const char *context,
-    const char *message,
-    const char *hint
-)
-{
-    shriji_error_at_full(tok, code, context, __func__, message, hint);
-}
-
-
-
-
-
-
 
 /*──────────────────────────────────────────────
  | HELPERS
@@ -106,7 +90,7 @@ static int expect(TokenType t, ShrijiErrorCode c,
         return 1;
     }
 
-   parser_error(current, c, ctx, msg, hint);
+   shriji_error_at(current, c, ctx, msg, hint);
     return 0;
 }
 
@@ -116,6 +100,16 @@ static void skip_separators(void)
         advance();
     }
 }
+
+/*──────────────────────────────────────────────
+ | SEPARATOR CHECK (MISSING FUNCTION FIX)
+ *──────────────────────────────────────────────*/
+static int is_separator(TokenType type)
+{
+    return (type == TOKEN_NEWLINE);
+}
+
+
 
 static void unescape_into(char *out, int outcap, const char *in, int inlen)
 {
@@ -202,15 +196,9 @@ ASTNode *parse_program(const char *source)
         if (current.type == TOKEN_EOF)
             break;
 
-
-
-
-
-
 ASTNode *s = parse_statement();
 
 if (!s) {
-    // 🔥 ERROR RECOVERY
     while (current.type != TOKEN_NEWLINE &&
            current.type != TOKEN_EOF) {
         advance();
@@ -219,35 +207,38 @@ if (!s) {
     skip_separators();
     continue;
 }
-        ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
-        if (!tmp) {
-            free(stmts);
-            return NULL;
-        }
-        stmts = tmp;
 
-        stmts[count++] = s;
+/* 🔒 DUPLICATE GUARD (CRITICAL) */
+if (count > 0 && stmts[count - 1] == s) {
+    skip_separators();
+    continue;
+}
 
-        skip_separators();
+ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
+if (!tmp) {
+    free(stmts);
+    return NULL;
+}
+
+stmts = tmp;
+stmts[count++] = s;
+
+skip_separators();
+
+
     }
 
     return new_program_node(stmts, count);
 }
-
-
-
-
-
-
-
-
-
 
 /*──────────────────────────────────────────────
   | STATEMENT
   *──────────────────────────────────────────────*/
 static ASTNode *parse_statement(void)
 {
+      if (error_reported)
+        return NULL;
+
     ASTNode *node = NULL;
 
     if (current.type == TOKEN_LEFT_BRACE) return parse_block();
@@ -315,32 +306,29 @@ if (current.type == TOKEN_SAKHI ||
     current.type == TOKEN_KAVYA ||
     current.type == TOKEN_SHIRI) {
 
-    char cmd[32];
-    int len = current.length;
 
-    if (len >= (int)sizeof(cmd))
-        len = (int)sizeof(cmd) - 1;
+char cmd[32];
+int len = current.length;
 
-    strncpy(cmd, current.start, len);
-    cmd[len] = '\0';   /* ✅ VERY IMPORTANT */
+if (len >= (int)sizeof(cmd))
+    len = (int)sizeof(cmd) - 1;
 
-    advance();
-    skip_separators();
+strncpy(cmd, current.start, len);
+cmd[len] = '\0';
 
-    ASTNode *arg = parse_value();
-    if (!arg) return NULL;
+advance();
+skip_separators();
 
-    skip_separators();
-    return new_command_node(cmd, arg);
+/* ✅ OPTIONAL ARG */
+ASTNode *arg = NULL;
+
+if (!is_separator(current.type)) {
+    arg = parse_value();
 }
 
-
-
-
-
-
-
-
+skip_separators();
+return new_command_node(cmd, arg);
+}
 
 if (current.type == TOKEN_IDENTIFIER) {
 
@@ -389,12 +377,6 @@ if (current.type == TOKEN_IDENTIFIER) {
     return expr;
 }
 
-
-
-
-
-
-
 /* raw expression */
  if (current.type == TOKEN_NUMBER ||
     current.type == TOKEN_STRING ||
@@ -411,18 +393,21 @@ if (current.type == TOKEN_IDENTIFIER) {
 
     node = parse_expression();
 
-    if (!node) {
-        if (!error_reported) {
-            parser_error(
-                current,
-                E_PARSE_INVALID_TOKEN,
-                "expr",
-                "expression samajh nahi aaya",
-                "example: 5 + 2"
-            );
-        }
-        return NULL;
+     if (!node) {
+    if (!error_reported) {
+
+       shriji_error_at(
+    current,
+    E_PARSE_INVALID_TOKEN,
+    "expr",
+    "expression samajh nahi aaya",
+    "example: 5 + 2"
+);
+
+        error_reported = 1;
     }
+    return NULL;
+}
 
     /*  FIXED CHECK */
     if (current.type != TOKEN_NEWLINE &&
@@ -430,71 +415,64 @@ if (current.type == TOKEN_IDENTIFIER) {
         current.type != TOKEN_RIGHT_BRACE &&
         current.type != TOKEN_RIGHT_PAREN)
     {
-        char example[64];
-        shriji_build_example(current_source, example, sizeof(example));
+              char example[64];
+shriji_build_example(current_source, example, sizeof(example));
 
-        shriji_error_at(
-            current,
-            E_PARSE_OPERATOR_CHAIN,
-            "expr",
-            "Expression ke baad extra tokens bach gaye hain",
-            example
-        );
+if (!error_reported)
+{
+    shriji_error_at(
+        current,
+        E_PARSE_OPERATOR_CHAIN,
+        "expr",
+        "Expression ke baad extra tokens bach gaye hain",
+        example
+    );
+    error_reported = 1;
+}
 
-        return NULL;
+     return NULL;
+
     }
 
     return node;
 }
 
+/* '=' can never start a statement */
+if (current.type == TOKEN_EQUAL) {
 
+    char example[64];
+    shriji_build_example(current_source, example, sizeof(example));
 
-
-
-
-
-    /* '=' can never start a statement */
-    if (current.type == TOKEN_EQUAL) {
-
-char example[64];
-shriji_build_example(current_source, example, sizeof(example));
-
-shriji_error_at(
+    if (!error_reported)
+    {
+        shriji_error_at(
             current,
             E_PARSE_INVALID_TOKEN,
             "statement",
             "Assignment yahin se start nahi ho sakta. Variable aur '=' ek hi line me likho.",
             example
         );
-
-        return NULL;
+        error_reported = 1;   // 🔥 CRITICAL
     }
 
-
-
-
-
-
-
+    return NULL;
+}
 
 
 /* FINAL FALLBACK — ONLY IF NO ERROR ALREADY REPORTED */
 if (!error_reported) {
-    parser_error(
-        current,
-        E_PARSE_INVALID_TOKEN,
-        "statement",
-        "statement samajh nahi aaya",
-        "use: bolo / mavi / agar"
-    );
+       shriji_error_at(
+    current,
+    E_PARSE_INVALID_TOKEN,
+    "statement",
+    "statement samajh nahi aaya",
+    "use: bolo / mavi / agar"
+);
+    error_reported = 1;
 }
 
 return NULL;
 }
-
-
-
-
 
 
 /*──────────────────────────────────────────────
@@ -641,20 +619,25 @@ static ASTNode *parse_import(void)
     advance(); /* consume import */
     skip_separators();
 
-    if (current.type != TOKEN_STRING) {
-char example[64];
-shriji_build_example(current_source, example, sizeof(example));
 
-shriji_error_at(
+if (current.type != TOKEN_STRING) {
+    char example[64];
+    shriji_build_example(current_source, example, sizeof(example));
+
+    if (!error_reported)
+    {
+        shriji_error_at(
             current,
             E_IMPORT_PATH_INVALID,
             "import",
             "expected string path",
             example
         );
-
-        return NULL;
+        error_reported = 1;   // 🔥 CRITICAL
     }
+
+    return NULL;
+}
 
     char mod[256];
     int len = current.length;
@@ -723,11 +706,17 @@ static ASTNode *parse_function(void)
     advance(); /* consume kaam */
     skip_separators();
 
-    if (current.type != TOKEN_IDENTIFIER) {
+
+if (current.type != TOKEN_IDENTIFIER) {
+    if (!error_reported)
+    {
         shriji_error_at(current, E_FUNCTION_NAME_INVALID, "kaam", "expected function name",
                         "kaam add(a, b) { ... }");
-        return NULL;
+        error_reported = 1;   // 🔥 MUST
     }
+    return NULL;
+}
+
 
     char fname[128];
     strncpy(fname, current.start, current.length);
@@ -748,13 +737,21 @@ static ASTNode *parse_function(void)
     if (current.type != TOKEN_RIGHT_PAREN) {
         while (1) {
 
-            if (current.type != TOKEN_IDENTIFIER) {
-                shriji_error_at(current, E_FUNCTION_PARAM_INVALID, "params",
-                                "expected parameter name",
-                                "kaam add(a, b) { ... }");
-                free(params);
-                return NULL;
-            }
+
+
+     if (current.type != TOKEN_IDENTIFIER) {
+    if (!error_reported)
+    {
+        shriji_error_at(current, E_FUNCTION_PARAM_INVALID, "params",
+                        "expected parameter name",
+                        "kaam add(a, b) { ... }");
+        error_reported = 1;   // 🔥 CRITICAL
+    }
+    free(params);
+    return NULL;
+}
+
+
 
             char p[128];
             strncpy(p, current.start, current.length);
@@ -804,10 +801,10 @@ static ASTNode *parse_rachna_definition(void)
 
     /* name */
     if (current.type != TOKEN_IDENTIFIER) {
-        parser_error(current, E_PARSE_INVALID_TOKEN,
-                     "rachna",
-                     "name expected",
-                     "example: rachna add() { }");
+                   shriji_error_at(current, E_PARSE_INVALID_TOKEN,
+                "rachna",
+                "name expected",
+                "example: rachna add() { }");
         return NULL;
     }
 
@@ -836,10 +833,10 @@ static ASTNode *parse_rachna_definition(void)
         while (1) {
 
             if (current.type != TOKEN_IDENTIFIER) {
-                parser_error(current, E_PARSE_INVALID_TOKEN,
-                             "rachna",
-                             "parameter name expected",
-                             "example: rachna add(a,b) { }");
+                  shriji_error_at(current, E_PARSE_INVALID_TOKEN,
+                "rachna",
+                "parameter name expected",
+                "example: rachna add(a,b) { }");
                 return NULL;
             }
 
@@ -916,10 +913,6 @@ static ASTNode *parse_value(void)
 
 
 
-
-
-
-
 /*──────────────────────────────────────────────
   ASSIGNMENT (MAVI)
 ──────────────────────────────────────────────*/
@@ -928,7 +921,10 @@ static ASTNode *parse_assignment(void)
     advance(); /* consume 'mavi' */
     skip_separators();
 
-    if (current.type != TOKEN_IDENTIFIER) {
+
+if (current.type != TOKEN_IDENTIFIER) {
+
+    if (!error_reported) {
         shriji_error_at(
             current,
             E_ASSIGN_01,
@@ -936,8 +932,11 @@ static ASTNode *parse_assignment(void)
             "Declaration samajh li, par variable ka naam clear nahi hua.",
             "mavi x  ya  mavi x = 10"
         );
-        return NULL;
     }
+
+    return NULL;
+}
+
 
     char name[128];
     strncpy(name, current.start, current.length);
@@ -950,19 +949,24 @@ static ASTNode *parse_assignment(void)
         advance();
         skip_separators();
 
-        if (current.type == TOKEN_NEWLINE ||
-            current.type == TOKEN_EOF ||
-            current.type == TOKEN_RIGHT_BRACE) {
 
-            shriji_error_at(
-                current,
-                E_ASSIGN_02,
-                "assignment",
-                "'=' ke baad value missing hai",
-                "example: mavi x = 10"
-            );
-            return NULL;
-        }
+    if (current.type == TOKEN_NEWLINE ||
+    current.type == TOKEN_EOF ||
+    current.type == TOKEN_RIGHT_BRACE) {
+
+    if (!error_reported) {
+        shriji_error_at(
+            current,
+            E_ASSIGN_02,
+            "assignment",
+            "'=' ke baad value missing hai",
+            "example: mavi x = 10"
+        );
+    }
+
+    return NULL;
+}
+
 
         ASTNode *val = parse_value();
         if (!val) return NULL;
@@ -1054,6 +1058,9 @@ static ASTNode *parse_comparison(void)
 
 static ASTNode *parse_expression(void)
 {
+      if (error_reported)
+        return NULL;
+
    ASTNode *n = parse_logical_or();
     if (!n) return NULL;
 
@@ -1072,19 +1079,25 @@ if (prev_token.type == TOKEN_NEWLINE ||
         current.type == TOKEN_SLASH)
     {
 
-        char example[64];
-        shriji_build_example(current_source, example, sizeof(example));
 
-        shriji_error_at(
-            current,
-            E_PARSE_OPERATOR_START,
-            "expr",
-            "Expression operator se start nahi ho sakta",
-            example
-        );
+        if (!error_reported) {
 
-        parser_sync();
-        return NULL;
+    char example[64];
+    shriji_build_example(current_source, example, sizeof(example));
+
+    shriji_error_at(
+        current,
+        E_PARSE_OPERATOR_START,
+        "expr",
+        "Expression operator se start nahi ho sakta",
+        example
+    );
+}
+
+parser_sync();
+return NULL;
+
+
     }
 }
 
@@ -1129,18 +1142,19 @@ if (current.type == TOKEN_PLUS  ||
 
 
 
+if (!error_reported) {
 
+    char example[64];
+    shriji_build_example(current_source, example, sizeof(example));
 
-char example[64];
-shriji_build_example(current_source, example, sizeof(example));
-
-shriji_error_at(
-    current,
-    code,
-    "expr",
-    "Operator chain detect hui hai.",
-    example
-);
+    shriji_error_at(
+        current,
+        code,
+        "expr",
+        "Operator chain detect hui hai.",
+        example
+    );
+}
 
 return NULL;
 
@@ -1155,27 +1169,29 @@ return NULL;
 
 
 
-
-
 /* operator end detection */
 
-if (current.type == TOKEN_NEWLINE ||
+     if (current.type == TOKEN_NEWLINE ||
     current.type == TOKEN_EOF ||
     current.type == TOKEN_RIGHT_BRACE)
 {
-char example[64];
-shriji_build_example(current_source, example, sizeof(example));
+    if (!error_reported) {
 
-shriji_error_at(
-    current,
-    E_PARSE_OPERATOR_END,
-    "expr",
-    "Operator ke baad value missing hai",
-    example
-);
+        char example[64];
+        shriji_build_example(current_source, example, sizeof(example));
+
+        shriji_error_at(
+            current,
+            E_PARSE_OPERATOR_END,
+            "expr",
+            "Operator ke baad value missing hai",
+            example
+        );
+    }
 
     return NULL;
 }
+
 
         ASTNode *right = parse_term();
         if (!right) return NULL;
@@ -1187,8 +1203,12 @@ shriji_error_at(
 }
 
 
+
 static ASTNode *parse_term(void)
 {
+      if (error_reported)
+        return NULL;
+
     ASTNode *n = parse_unary();
     if (!n) return NULL;
 
@@ -1208,25 +1228,26 @@ static ASTNode *parse_term(void)
 
 
 
-
-
-
 /* double operator detection */
+
 
 if (current.type == TOKEN_STAR ||
     current.type == TOKEN_SLASH ||
     current.type == TOKEN_MOD)
 {
-    char example[64];
-    shriji_build_example(current_source, example, sizeof(example));
+    if (!error_reported) {
 
-    shriji_error_at(
-        current,
-        E_PARSE_DOUBLE_OPERATOR,
-        "expr",
-        "Do operators ek saath aa gaye hain.",
-        example
-    );
+        char example[64];
+        shriji_build_example(current_source, example, sizeof(example));
+
+        shriji_error_at(
+            current,
+            E_PARSE_DOUBLE_OPERATOR,
+            "expr",
+            "Do operators ek saath aa gaye hain.",
+            example
+        );
+    }
 
     return NULL;
 }
@@ -1234,33 +1255,31 @@ if (current.type == TOKEN_STAR ||
 
 
 
-
-
-
-
-
 /* operator end detection for * / % */
 
-if (current.type == TOKEN_NEWLINE ||
+        if (current.type == TOKEN_NEWLINE ||
     current.type == TOKEN_EOF ||
     current.type == TOKEN_RIGHT_BRACE)
 {
+    if (!error_reported) {
 
-char example[64];
-shriji_build_example(current_source, example, sizeof(example));
+        char example[64];
+        shriji_build_example(current_source, example, sizeof(example));
 
-shriji_error_at(
-    current,
-    E_PARSE_OPERATOR_END,
-    "expr",
-    "Expression operator par end ho gaya",
-    example
-);
+        shriji_error_at(
+            current,
+            E_PARSE_OPERATOR_END,
+            "expr",
+            "Expression operator par end ho gaya",
+            example
+        );
+    }
 
-skip_separators();
-return NULL;
-
+    skip_separators();
+    return NULL;
 }
+
+
 
         ASTNode *right = parse_unary();
         if (!right) return NULL;
@@ -1287,6 +1306,9 @@ return NULL;
  *──────────────────────────────────────────────*/
 static ASTNode *parse_unary(void)
 {
+        if (error_reported)
+        return NULL;
+
     /* prefix ++ */
     if (current.type == TOKEN_PLUSPLUS) {
         advance();
@@ -1321,21 +1343,28 @@ static ASTNode *parse_unary(void)
         Token op = current;
         advance();
 
-        /* prevent invalid operator chain */
-        if (current.type == TOKEN_PLUS ||
-            current.type == TOKEN_MINUS ||
-            current.type == TOKEN_STAR ||
-            current.type == TOKEN_SLASH)
-        {
-            shriji_error_at(
-                current,
-                E_PARSE_OPERATOR_CHAIN,
-                "expr",
-                "operator chain galat hai",
-                "example: +5 ya -3"
-            );
-            return NULL;
-        }
+
+   if (current.type == TOKEN_PLUS ||
+    current.type == TOKEN_MINUS ||
+    current.type == TOKEN_STAR ||
+    current.type == TOKEN_SLASH)
+{
+    if (!error_reported) {
+
+        shriji_error_at(
+            current,
+            E_PARSE_OPERATOR_CHAIN,
+            "expr",
+            "operator chain galat hai",
+            "example: +5 ya -3"
+        );
+    }
+
+    return NULL;
+}
+
+
+
 
         ASTNode *expr = parse_primary();
         if (!expr) return NULL;
@@ -1358,8 +1387,10 @@ static ASTNode *parse_unary(void)
     if (!node) return NULL;
 
     /* detect missing operator: 6(5+9) */
-    if (current.type == TOKEN_LEFT_PAREN)
-    {
+     if (current.type == TOKEN_LEFT_PAREN)
+{
+    if (!error_reported) {
+
         char example[64];
         shriji_build_example(current_source, example, sizeof(example));
 
@@ -1370,15 +1401,14 @@ static ASTNode *parse_unary(void)
             "Do values ke beech operator missing hai",
             example
         );
-
-        return NULL;
     }
 
-    return node;
+    return NULL;
 }
 
 
-
+    return node;
+}
 
 
 
@@ -1493,14 +1523,14 @@ static ASTNode *parse_postfix(ASTNode *base)
 
 
 
-
-
-
 /*──────────────────────────────────────────────
  | PRIMARY
  *──────────────────────────────────────────────*/
 static ASTNode *parse_primary(void)
 {
+     if (error_reported)
+        return NULL;
+
 if (current.type == TOKEN_EOF ||
         current.type == TOKEN_NEWLINE)
     {
@@ -1525,7 +1555,7 @@ if (current.type == TOKEN_EOF ||
         }
 
    if (current.type == TOKEN_FALSE) {
-        advance();
+           advance();
            return new_bool_node(0);
         }
 
@@ -1865,4 +1895,6 @@ ASTNode *parse_single_statement(const char *source)
     ASTNode *stmt = parse_statement();
 
     return stmt;
-}
+  }
+
+

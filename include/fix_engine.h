@@ -108,12 +108,13 @@ void engine_result_free(EngineResult *res);
 /* =========================================================
    LEGACY FIX ENGINE (KRST COMPAT)
    ========================================================= */
-
 ASTNode *language_execute_with_fix(
     const char *input,
+    char *final_output,
     int *was_fixed,
     int *penalty_out
 );
+
 typedef enum {
     FIX_NONE = 0,
     FIX_SAFE,

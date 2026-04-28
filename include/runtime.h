@@ -21,7 +21,9 @@ typedef struct {
 
     int call_depth;
 
-    int error_flag;   // NEW
+    int error_flag;
+    int printed;   /* 🌸 NEW: print control flag */
+    int executed;
 
 } ShrijiRuntime;
 

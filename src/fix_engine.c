@@ -19,21 +19,29 @@
 ASTNode *parse_once(const char *input)
 {
     error_reported = 0;
+
+    /* silent mode (no duplicate print) */
+    shriji_set_error_mode(ERROR_MODE_COLLECT);
+
+    ASTNode *node = parse_program(input);
+
+    /* restore normal mode */
     shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
 
-    return parse_program(input);
+    return node;
 }
 
 
 /*──────────────────────────────────────────────
    MAIN EXECUTION (SAFE VERSION)
 ──────────────────────────────────────────────*/
-
 ASTNode *language_execute_with_fix(
     const char *input,
+    char *final_output,
     int *was_fixed,
     int *penalty_out
 )
+
 {
     if (!input)
         return NULL;
@@ -47,44 +55,64 @@ ASTNode *language_execute_with_fix(
     error_reported = 0;
     shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
 
-    /* FIRST PARSE */
-    ASTNode *root = parse_program(input);
 
-    /* ERROR CASE */
-    if (!root || error_reported)
-    {
-        char fixed[MAX_WORKING_BUFFER];
-        memset(fixed, 0, sizeof(fixed));
+ASTNode *root = parse_once(input);
 
-        FixType type = fix_apply(input, fixed);
+/* 🔻 TRY LOOP (max 2 attempts) */
+int attempts = 0;
+char working[MAX_WORKING_BUFFER];
 
-        /* SAFE FIX */
-        if (type == FIX_SAFE)
-        {
-            if (was_fixed)
-                *was_fixed = 1;
+strncpy(working, input, sizeof(working) - 1);
+working[sizeof(working) - 1] = '\0';
 
-            error_reported = 0;
+while ((!root || error_reported) && attempts < 2)
+{
+    char fixed[MAX_WORKING_BUFFER];
+    memset(fixed, 0, sizeof(fixed));
 
-            ASTNode *new_root = parse_program(fixed);
+    FixType type = fix_apply(working, fixed);
 
-            if (!new_root || error_reported)
-                return NULL;
+    if (type != FIX_SAFE)
+        break;
 
-            return new_root;
-        }
+    if (was_fixed)
+        *was_fixed = 1;
 
-        /* no safe fix */
-        return NULL;
-    }
+    if (penalty_out)
+        *penalty_out += 3;
 
-    return root;
+    error_reported = 0;
+
+    strncpy(working, fixed, sizeof(working));
+
+    root = parse_once(working);
+
+    attempts++;
+}
+
+/* FINAL CHECK */
+if (!root || error_reported)
+    return NULL;
+
+if (was_fixed && final_output)
+{
+    strncpy(final_output, working, MAX_WORKING_BUFFER);
+}
+
+return root;
+
+if (final_output)
+{
+    strncpy(final_output, working, MAX_WORKING_BUFFER - 1);
+    final_output[MAX_WORKING_BUFFER - 1] = '\0';
+}
+
 }
 
 
-/* ================================
+/*──────────────────────────────────────────────
    HELPER: invalid token
-================================ */
+──────────────────────────────────────────────*/
 
 static int has_invalid_char(const char *input)
 {
@@ -101,9 +129,9 @@ static int has_invalid_char(const char *input)
 }
 
 
-/* ================================
-   HELPER: operator chain length (FIXED)
-================================ */
+/*──────────────────────────────────────────────
+   HELPER: operator chain length
+──────────────────────────────────────────────*/
 
 static int operator_chain_len(const char *input, int pos)
 {
@@ -119,9 +147,9 @@ static int operator_chain_len(const char *input, int pos)
 }
 
 
-/* ================================
-   MAIN FIX ENGINE
-================================ */
+/*──────────────────────────────────────────────
+   MAIN FIX ENGINE (STRICT MODE)
+──────────────────────────────────────────────*/
 
 FixType fix_apply(const char *input, char *output)
 {
@@ -153,20 +181,12 @@ FixType fix_apply(const char *input, char *output)
             continue;
         }
 
-        /* operator chain */
+        /* STRICT: operator chain NOT allowed */
         if (strchr("+-*/", input[i]))
         {
             int len = operator_chain_len(input, i);
 
-            if (len == 2 && input[i] == input[i+1])
-            {
-                output[j++] = input[i];
-                i++;
-                changed = 1;
-                continue;
-            }
-
-            if (len > 2 || (len == 2 && input[i] != input[i+1]))
+            if (len >= 2)
             {
                 return FIX_DOUBTFUL;
             }

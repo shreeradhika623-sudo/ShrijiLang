@@ -3,6 +3,8 @@
 
 #include "../include/token.h"
 
+extern int GYAAN_ALREADY_PRINTED;
+
 typedef enum {
 
     E_UNKNOWN = 0,
@@ -51,23 +53,20 @@ typedef enum {
 
 
 /*──────────────────────────────────────────────*/
-
 typedef struct {
 
     ShrijiErrorCode code;
 
-    const char *context;
-    const char *message;
-    const char *hint;
-
-    const char *function;   // NEW (optional)
+    char context[128];
+    char message[256];
+    char hint[128];
+    char function[64];
 
     int has_location;
     int line;
     int col;
 
 } ShrijiErrorInfo;
-
 
 /*──────────────────────────────────────────────*/
 
