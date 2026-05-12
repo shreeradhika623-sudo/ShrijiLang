@@ -67,7 +67,6 @@ static Token make_token(TokenType type, const char *start, int length)
 /*──────────────────────────────────────────────
   SKIP WHITESPACE + COMMENTS
 ──────────────────────────────────────────────*/
-
 static void skip_whitespace(void)
 {
     for (;;) {
@@ -82,22 +81,19 @@ static void skip_whitespace(void)
                 break;
 
             case '\n':
-                advance();
                 return;
 
             case '#':
                 while (peek() != '\n' && peek() != '\0') {
                     advance();
                 }
-                if (peek() == '\n') advance();
-                break;
+                return;
 
             default:
                 return;
         }
     }
 }
-
 /*──────────────────────────────────────────────
   NUMBER
 ──────────────────────────────────────────────*/
@@ -233,13 +229,14 @@ Token scan_token(void)
 
         case '*': return make_token(TOKEN_STAR, start, 1);
         case '/': return make_token(TOKEN_SLASH, start, 1);
+
         case '&':
-    if (match('&')) return make_token(TOKEN_AND, start, 2);
-             break;
+         if (match('&')) return make_token(TOKEN_AND, start, 2);
+                   return make_token(TOKEN_ERROR, start, 1);
 
         case '|':
-    if (match('|')) return make_token(TOKEN_OR, start, 2);
-             break;
+         if (match('|')) return make_token(TOKEN_OR, start, 2);
+                  return make_token(TOKEN_ERROR, start, 1);
 
         case '%': return make_token(TOKEN_MOD, start, 1);
 
@@ -252,6 +249,8 @@ Token scan_token(void)
 
         case ',': return make_token(TOKEN_COMMA, start, 1);
         case ':': return make_token(TOKEN_COLON, start, 1);
+
+       case ';': return make_token(TOKEN_SEMICOLON, start, 1);
 
         case '=':
             return make_token(match('=') ? TOKEN_EQEQ : TOKEN_EQUAL, start, 1);
@@ -273,5 +272,5 @@ Token scan_token(void)
     }
 
     /* Unknown / Unicode characters skip */
-    return scan_token();
+    return make_token(TOKEN_ERROR, start, 1);
 }

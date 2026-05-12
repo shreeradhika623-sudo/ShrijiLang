@@ -113,16 +113,15 @@ static FixRule fix_rules[] = {
         .apply_fix = fix_missing_value_after_equal
     },
 
-    /* structural: operator cleanup (not always guaranteed) */
-    {
-        .error_code = E_PARSE_OPERATOR_CHAIN,
-        .category = FIXCAT_EXTRA_OPERATOR,
-        .safety = FIX_SAFE_STRUCTURAL,
-        .confidence_penalty = 8,
-        .max_attempt = 1,
-        .reparse_required = 1,
-        .apply_fix = fix_double_operator
-    }
+{
+    .error_code = E_PARSE_DOUBLE_OPERATOR,   //  CHANGE HERE
+    .category = FIXCAT_EXTRA_OPERATOR,
+    .safety = FIX_SAFE_DETERMINISTIC,        //  make deterministic
+    .confidence_penalty = 6,
+    .max_attempt = 1,
+    .reparse_required = 1,
+    .apply_fix = fix_double_operator
+}
 
 };
 

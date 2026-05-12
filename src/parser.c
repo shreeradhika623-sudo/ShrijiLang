@@ -15,8 +15,6 @@
 #include "lang/token_master.h"
 #endif
 
-
-
 /*──────────────────────────────────────────────
  | SHRIJILANG PARSER — V1 STABLE (FULL)
  | Supports:
@@ -32,9 +30,6 @@
  |   - list literal: [1, 2, 3]
  |   - indexing: a[0]
  *──────────────────────────────────────────────*/
-
-
-
 
 static ASTNode *parse_statement(void);
 static ASTNode *parse_block(void);
@@ -96,9 +91,11 @@ static int expect(TokenType t, ShrijiErrorCode c,
 
 static void skip_separators(void)
 {
-    while (current.type == TOKEN_NEWLINE) {
-        advance();
-    }
+while (current.type == TOKEN_NEWLINE ||
+       current.type == TOKEN_SEMICOLON)
+{
+    advance();
+ }
 }
 
 /*──────────────────────────────────────────────
@@ -106,10 +103,9 @@ static void skip_separators(void)
  *──────────────────────────────────────────────*/
 static int is_separator(TokenType type)
 {
-    return (type == TOKEN_NEWLINE);
-}
-
-
+    return (type == TOKEN_NEWLINE ||
+            type == TOKEN_SEMICOLON);
+    }
 
 static void unescape_into(char *out, int outcap, const char *in, int inlen)
 {
@@ -141,21 +137,9 @@ static void unescape_into(char *out, int outcap, const char *in, int inlen)
     out[oi] = 0;
 }
 
-
-
-
-
-
 /*──────────────────────────────────────────────
  | PARSER SYNCHRONIZE
  *──────────────────────────────────────────────*/
-
-
-
-
-
-
-
 static void parser_sync(void)
 {
     while (current.type != TOKEN_NEWLINE &&
@@ -165,20 +149,12 @@ static void parser_sync(void)
     }
 }
 
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | PROGRAM
  *──────────────────────────────────────────────*/
-
 ASTNode *parse_program(const char *source)
 {
-   current_source = source;
+    current_source = source;
 
 #ifdef SHRIJI_ENABLE_MASTER_TOKENS
     shriji_register_grammar_core();
@@ -187,45 +163,77 @@ ASTNode *parse_program(const char *source)
     init_tokenizer(source);
     advance();
 
+    /* ✅ RESET ONLY ONCE (CRITICAL FIX) */
+    error_reported = 0;
+
     ASTNode **stmts = NULL;
     int count = 0;
 
     while (current.type != TOKEN_EOF) {
-   error_reported = 0;
+
+    error_reported = 0;   //  CRITICAL FIX (per statement reset)
+
         skip_separators();
+
         if (current.type == TOKEN_EOF)
             break;
 
+
 ASTNode *s = parse_statement();
 
+/*  STEP 1: TRY EXPRESSION */
+if (!s && !error_reported) {
+    s = parse_expression();
+}
+
+/* 🚨 STEP 2: FINAL FAIL → ERROR */
 if (!s) {
-    while (current.type != TOKEN_NEWLINE &&
-           current.type != TOKEN_EOF) {
-        advance();
+
+    if (!error_reported) {
+        shriji_error_at(
+            current,
+            E_PARSE_INVALID_TOKEN,
+            "program",
+            "Invalid ya incomplete input",
+            "check syntax"
+        );
+        error_reported = 1;
     }
 
+    while (current.type != TOKEN_NEWLINE &&
+       current.type != TOKEN_SEMICOLON &&
+       current.type != TOKEN_EOF)
+{
+    advance();
+}
+
+/* skip the separator itself */
+if (current.type == TOKEN_SEMICOLON ||
+    current.type == TOKEN_NEWLINE)
+{
+    advance();
+}
+ 
     skip_separators();
     continue;
 }
 
-/* 🔒 DUPLICATE GUARD (CRITICAL) */
-if (count > 0 && stmts[count - 1] == s) {
-    skip_separators();
-    continue;
-}
+        /* DUPLICATE GUARD */
+        if (count > 0 && stmts[count - 1] == s) {
+            skip_separators();
+            continue;
+        }
 
-ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
-if (!tmp) {
-    free(stmts);
-    return NULL;
-}
+        ASTNode **tmp = realloc(stmts, sizeof(ASTNode*) * (count + 1));
+        if (!tmp) {
+            free(stmts);
+            return NULL;
+        }
 
-stmts = tmp;
-stmts[count++] = s;
+        stmts = tmp;
+        stmts[count++] = s;
 
-skip_separators();
-
-
+        skip_separators();
     }
 
     return new_program_node(stmts, count);
@@ -236,15 +244,29 @@ skip_separators();
   *──────────────────────────────────────────────*/
 static ASTNode *parse_statement(void)
 {
-      if (error_reported)
-        return NULL;
-
     ASTNode *node = NULL;
+
+      /*  HANDLE TOKEN_ERROR (CRITICAL FIX) */
+    if (current.type == TOKEN_ERROR) {
+
+        if (!error_reported) {
+            shriji_error_at(
+                current,
+                E_PARSE_INVALID_TOKEN,
+                "lexer",
+                "Invalid token mila hai",
+                "invalid character hatao"
+            );
+            error_reported = 1;
+        }
+
+        advance();   // skip bad token
+        return NULL;
+    }
+
 
     if (current.type == TOKEN_LEFT_BRACE) return parse_block();
 
-     if (current.type == TOKEN_RACHNA)
-    return parse_rachna_definition();
 
     if (current.type == TOKEN_AGAR) {
         ASTNode *i = parse_if();
@@ -282,6 +304,7 @@ static ASTNode *parse_statement(void)
         skip_separators();
         return new_continue_node();
     }
+
 
 /* bolo <expr> */
 if (current.type == TOKEN_BOLO) {
@@ -330,112 +353,6 @@ skip_separators();
 return new_command_node(cmd, arg);
 }
 
-if (current.type == TOKEN_IDENTIFIER) {
-
-    Token name_token = current;
-
-    advance();
-    skip_separators();
-
-    /* CASE 1: UPDATE (x = ...) */
-    if (current.type == TOKEN_EQUAL) {
-
-        advance();
-        skip_separators();
-
-        ASTNode *val = parse_expression();
-        if (!val) return NULL;
-
-        char name[128];
-        strncpy(name, name_token.start, name_token.length);
-        name[name_token.length] = '\0';
-
-        skip_separators();
-        return new_update_node(name, val);
-    }
-
-    /* CASE 2: FUNCTION CALL (test(...)) */
-    if (current.type == TOKEN_LEFT_PAREN) {
-
-        /* rollback */
-        current = name_token;
-
-        ASTNode *call = parse_expression();
-        if (!call) return NULL;
-
-        skip_separators();
-        return call;
-    }
-
-    /* CASE 3: VARIABLE */
-    current = name_token;
-
-    ASTNode *expr = parse_expression();
-    if (!expr) return NULL;
-
-    skip_separators();
-    return expr;
-}
-
-/* raw expression */
- if (current.type == TOKEN_NUMBER ||
-    current.type == TOKEN_STRING ||
-    current.type == TOKEN_TRUE   ||
-    current.type == TOKEN_FALSE  ||
-    current.type == TOKEN_LEFT_PAREN ||
-    current.type == TOKEN_NAHI   ||
-    current.type == TOKEN_LEFT_BRACKET ||
-    current.type == TOKEN_PLUS ||
-    current.type == TOKEN_MINUS ||
-    current.type == TOKEN_STAR ||
-    current.type == TOKEN_SLASH)
-{
-
-    node = parse_expression();
-
-     if (!node) {
-    if (!error_reported) {
-
-       shriji_error_at(
-    current,
-    E_PARSE_INVALID_TOKEN,
-    "expr",
-    "expression samajh nahi aaya",
-    "example: 5 + 2"
-);
-
-        error_reported = 1;
-    }
-    return NULL;
-}
-
-    /*  FIXED CHECK */
-    if (current.type != TOKEN_NEWLINE &&
-        current.type != TOKEN_EOF &&
-        current.type != TOKEN_RIGHT_BRACE &&
-        current.type != TOKEN_RIGHT_PAREN)
-    {
-              char example[64];
-shriji_build_example(current_source, example, sizeof(example));
-
-if (!error_reported)
-{
-    shriji_error_at(
-        current,
-        E_PARSE_OPERATOR_CHAIN,
-        "expr",
-        "Expression ke baad extra tokens bach gaye hain",
-        example
-    );
-    error_reported = 1;
-}
-
-     return NULL;
-
-    }
-
-    return node;
-}
 
 /* '=' can never start a statement */
 if (current.type == TOKEN_EQUAL) {
@@ -452,29 +369,37 @@ if (current.type == TOKEN_EQUAL) {
             "Assignment yahin se start nahi ho sakta. Variable aur '=' ek hi line me likho.",
             example
         );
-        error_reported = 1;   // 🔥 CRITICAL
+        error_reported = 1;   //  CRITICAL
     }
 
     return NULL;
 }
 
-
-/* FINAL FALLBACK — ONLY IF NO ERROR ALREADY REPORTED */
+/* FINAL FALLBACK */
 if (!error_reported) {
-       shriji_error_at(
-    current,
-    E_PARSE_INVALID_TOKEN,
-    "statement",
-    "statement samajh nahi aaya",
-    "use: bolo / mavi / agar"
-);
+
+    /* TRY EXPRESSION FIRST */
+    ASTNode *expr = parse_expression();
+
+    if (expr) {
+        return expr;   // ✅ CRITICAL FIX
+    }
+
+    /* 🚨 ONLY NOW ERROR */
+    shriji_error_at(
+        current,
+        E_PARSE_INVALID_TOKEN,
+        "statement",
+        "statement samajh nahi aaya",
+        "use: bolo / mavi / agar"
+    );
+
     error_reported = 1;
 }
 
 return NULL;
+
 }
-
-
 /*──────────────────────────────────────────────
  | BLOCK { ... }
  *──────────────────────────────────────────────*/
@@ -538,14 +463,6 @@ if (current.type == TOKEN_ERROR) {
     return new_block_node(stmts, count);
 }
 
-
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | IF / ELSE
  *──────────────────────────────────────────────*/
@@ -578,13 +495,6 @@ static ASTNode *parse_if(void)
     return node;
 }
 
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | WHILE
  *──────────────────────────────────────────────*/
@@ -602,14 +512,6 @@ static ASTNode *parse_while(void)
 
     return new_while_node(cond, body);
 }
-
-
-
-
-
-
-
-
 
 /*──────────────────────────────────────────────
  | IMPORT "file.sri"
@@ -633,7 +535,7 @@ if (current.type != TOKEN_STRING) {
             "expected string path",
             example
         );
-        error_reported = 1;   // 🔥 CRITICAL
+        error_reported = 1;   //  CRITICAL
     }
 
     return NULL;
@@ -658,15 +560,6 @@ if (current.type != TOKEN_STRING) {
     return new_import_node(mod);
 }
 
-
-
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | RETURN / WAPAS
  *──────────────────────────────────────────────*/
@@ -682,21 +575,12 @@ static ASTNode *parse_return(void)
         return new_return_node(NULL);
     }
 
-       ASTNode *val = parse_value();
+    ASTNode *val = parse_expression();
     if (!val) return NULL;
 
     skip_separators();
     return new_return_node(val);
 }
-
-
-
-
-
-
-
-
-
 
 /*──────────────────────────────────────────────
  | FUNCTION / KAAM
@@ -881,22 +765,6 @@ static ASTNode *parse_rachna_definition(void)
     return new_rachna_node(name, params, param_count, body);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | IDENTIFIER / UPDATE
  *──────────────────────────────────────────────*/
@@ -905,13 +773,6 @@ static ASTNode *parse_value(void)
 {
     return parse_comparison();
 }
-
-
-
-
-
-
-
 
 /*──────────────────────────────────────────────
   ASSIGNMENT (MAVI)
@@ -945,42 +806,38 @@ if (current.type != TOKEN_IDENTIFIER) {
 
     skip_separators();
 
-    if (current.type == TOKEN_EQUAL) {
-        advance();
-        skip_separators();
-
+if (current.type == TOKEN_EQUAL) {
+    advance();
+    skip_separators();
 
     if (current.type == TOKEN_NEWLINE ||
-    current.type == TOKEN_EOF ||
-    current.type == TOKEN_RIGHT_BRACE) {
+        current.type == TOKEN_EOF ||
+        current.type == TOKEN_RIGHT_BRACE) {
 
-    if (!error_reported) {
-        shriji_error_at(
-            current,
-            E_ASSIGN_02,
-            "assignment",
-            "'=' ke baad value missing hai",
-            "example: mavi x = 10"
-        );
+        if (!error_reported) {
+            shriji_error_at(
+                current,
+                E_ASSIGN_02,
+                "assignment",
+                "'=' ke baad value missing hai",
+                "example: mavi x = 10"
+            );
+        }
+
+        return NULL;
     }
 
-    return NULL;
+    /*  FIX HERE */
+    ASTNode *val = parse_expression();   // ✅ CHANGE
+
+    if (!val) return NULL;
+
+    skip_separators();
+    return new_assignment_node(name, val);
 }
-
-
-        ASTNode *val = parse_value();
-        if (!val) return NULL;
-
-        skip_separators();
-        return new_assignment_node(name, val);
-    }
 
     return new_assignment_node(name, NULL);
 }
-
-
-
-
 
 
 static ASTNode *parse_logical_and(void)
@@ -1046,8 +903,23 @@ static ASTNode *parse_comparison(void)
 
         advance();
 
-        ASTNode *right = parse_term();
-        if (!right) return NULL;
+ASTNode *right = parse_term();
+
+if (!right) {
+
+    if (!error_reported) {
+        shriji_error_at(
+            current,
+            E_PARSE_INVALID_TOKEN,
+            "expression",
+            "operator ke baad value missing hai",
+            "example: 6+2"
+        );
+        error_reported = 1;
+    }
+
+    return NULL;
+}
 
         n = new_binary_node(op, n, right);
     }
@@ -1058,13 +930,10 @@ static ASTNode *parse_comparison(void)
 
 static ASTNode *parse_expression(void)
 {
-      if (error_reported)
-        return NULL;
+
 
    ASTNode *n = parse_logical_or();
     if (!n) return NULL;
-
-
 
 
 /*──────────────────────────────────────────────
@@ -1113,13 +982,7 @@ while (current.type == TOKEN_PLUS  ||
 
     advance();
 
-
-
-
-
-
-
-/* operator classification */
+/* 🚨 STRICT DOUBLE OPERATOR BLOCK */
 
 if (current.type == TOKEN_PLUS  ||
     current.type == TOKEN_MINUS ||
@@ -1128,45 +991,25 @@ if (current.type == TOKEN_PLUS  ||
     current.type == TOKEN_AND   ||
     current.type == TOKEN_OR)
 {
-    ShrijiErrorCode code = E_PARSE_DOUBLE_OPERATOR;
-
-    if (prev_token.type == current.type)
+    if (!error_reported)
     {
-        code = E_PARSE_DOUBLE_OPERATOR;
+        char example[64];
+        shriji_build_example(current_source, example, sizeof(example));
+
+        shriji_error_at(
+            current,
+            E_PARSE_DOUBLE_OPERATOR,
+            "expr",
+            "Do operators ek saath aa gaye hain.",
+            example
+        );
+
+        error_reported = 1;
     }
-    else
-    {
-        code = E_PARSE_OPERATOR_CHAIN;
-    }
 
-
-
-
-if (!error_reported) {
-
-    char example[64];
-    shriji_build_example(current_source, example, sizeof(example));
-
-    shriji_error_at(
-        current,
-        code,
-        "expr",
-        "Operator chain detect hui hai.",
-        example
-    );
+    /*  HARD STOP — no recovery */
+    return NULL;
 }
-
-return NULL;
-
-}
-
-
-
-
-
-
-
-
 
 
 /* operator end detection */
@@ -1222,12 +1065,6 @@ static ASTNode *parse_term(void)
 
         advance();
 
-
-
-
-
-
-
 /* double operator detection */
 
 
@@ -1235,25 +1072,28 @@ if (current.type == TOKEN_STAR ||
     current.type == TOKEN_SLASH ||
     current.type == TOKEN_MOD)
 {
-    if (!error_reported) {
 
-        char example[64];
-        shriji_build_example(current_source, example, sizeof(example));
+if (!error_reported) {
 
-        shriji_error_at(
-            current,
-            E_PARSE_DOUBLE_OPERATOR,
-            "expr",
-            "Do operators ek saath aa gaye hain.",
-            example
-        );
-    }
+    char example[64];
+    shriji_build_example(current_source, example, sizeof(example));
 
-    return NULL;
+    shriji_error_at(
+        current,
+        E_PARSE_DOUBLE_OPERATOR,
+        "expr",
+        "Do operators ek saath aa gaye hain.",
+        example
+    );
+
+    /*  INTELLIGENCE ADD */
+    snprintf(LAST_ERROR.expected, sizeof(LAST_ERROR.expected), "%s", "value");
+    snprintf(LAST_ERROR.received, sizeof(LAST_ERROR.received), "%s", current.start);
 }
 
 
-
+    return NULL;
+}
 
 /* operator end detection for * / % */
 
@@ -1280,7 +1120,6 @@ if (current.type == TOKEN_STAR ||
 }
 
 
-
         ASTNode *right = parse_unary();
         if (!right) return NULL;
 
@@ -1289,14 +1128,6 @@ if (current.type == TOKEN_STAR ||
 
     return n;
 }
-
-
-
-
-
-
-
-
 
 /*──────────────────────────────────────────────
  | UNARY
@@ -1309,33 +1140,26 @@ static ASTNode *parse_unary(void)
         if (error_reported)
         return NULL;
 
-    /* prefix ++ */
-    if (current.type == TOKEN_PLUSPLUS) {
-        advance();
+/*  DISALLOW ++ / -- COMPLETELY */
 
-        ASTNode *expr = parse_unary();
-        if (!expr) return NULL;
+if (current.type == TOKEN_PLUSPLUS ||
+    current.type == TOKEN_MINUSMINUS)
+{
+    if (!error_reported)
+    {
+        shriji_error_at(
+            current,
+            E_PARSE_DOUBLE_OPERATOR,
+            "expr",
+            "++ ya -- allowed nahi hai",
+            "example: 6+6"
+        );
 
-        Token fake = {0};
-        fake.start = "+";
-        fake.length = 1;
-
-        return new_unary_node(fake, expr);
+        error_reported = 1;
     }
 
-    /* prefix -- */
-    if (current.type == TOKEN_MINUSMINUS) {
-        advance();
-
-        ASTNode *expr = parse_unary();
-        if (!expr) return NULL;
-
-        Token fake = {0};
-        fake.start = "-";
-        fake.length = 1;
-
-        return new_unary_node(fake, expr);
-    }
+    return NULL;
+}
 
     /* unary + / - */
     if (current.type == TOKEN_PLUS || current.type == TOKEN_MINUS) {
@@ -1344,26 +1168,31 @@ static ASTNode *parse_unary(void)
         advance();
 
 
-   if (current.type == TOKEN_PLUS ||
+if (current.type == TOKEN_PLUS ||
     current.type == TOKEN_MINUS ||
     current.type == TOKEN_STAR ||
     current.type == TOKEN_SLASH)
 {
     if (!error_reported) {
 
+        char example[64];
+        shriji_build_example(current_source, example, sizeof(example));
+
         shriji_error_at(
             current,
             E_PARSE_OPERATOR_CHAIN,
             "expr",
             "operator chain galat hai",
-            "example: +5 ya -3"
+            example
         );
+
+        /*  INTELLIGENCE ADD */
+        snprintf(LAST_ERROR.expected, sizeof(LAST_ERROR.expected), "%s", "value");
+        snprintf(LAST_ERROR.received, sizeof(LAST_ERROR.received), "%s", current.start);
     }
 
     return NULL;
 }
-
-
 
 
         ASTNode *expr = parse_primary();
@@ -1409,8 +1238,6 @@ static ASTNode *parse_unary(void)
 
     return node;
 }
-
-
 
 
 /*──────────────────────────────────────────────
@@ -1468,17 +1295,6 @@ static ASTNode *parse_list_literal(void)
     return new_list_node(elements, count);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | POSTFIX:
  |   - indexing: a[0]
@@ -1517,12 +1333,6 @@ static ASTNode *parse_postfix(ASTNode *base)
     return node;
 }
 
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | PRIMARY
  *──────────────────────────────────────────────*/
@@ -1560,12 +1370,6 @@ if (current.type == TOKEN_EOF ||
         }
 
 
-
-
-
-
-
-
 if (current.type == TOKEN_NUMBER) {
 
     char temp[64];
@@ -1583,9 +1387,6 @@ if (current.type == TOKEN_NUMBER) {
 
     return new_number_node(v);
 }
-
-
-
 
 if (current.type == TOKEN_STRING) {
     char s[256];
@@ -1628,16 +1429,12 @@ if (current.type == TOKEN_LEFT_PAREN)
     return expr;
 }
 
-
-
     /* list literal: [ ... ] */
     if (current.type == TOKEN_LEFT_BRACKET) {
         ASTNode *lst = parse_list_literal();
         if (!lst) return NULL;
         return parse_postfix(lst);
     }
-
-
 
 
 /* dict literal: { ... } */
@@ -1650,19 +1447,12 @@ return node;
 }
 
 
-
-
     if (current.type == TOKEN_IDENTIFIER) {
 
         char name[128];
         strncpy(name, current.start, current.length);
         name[current.length] = 0;
         advance();
-
-
-
-
-
 
 /* function call: name(...) */
 if (current.type == TOKEN_LEFT_PAREN) {
@@ -1751,15 +1541,6 @@ return node;
     return NULL;
 }
 
-
-
-
-
-
-
-
-
-
 /*──────────────────────────────────────────────
  | DICT / MAP LITERAL: { "a": 1, "b": 2 }
  *──────────────────────────────────────────────*/
@@ -1820,13 +1601,6 @@ static ASTNode *parse_dict_literal(void)
                 return NULL;
             }
 
-
-
-
-
-
-
-
 /* push pair */
 ASTNode **tmpk = realloc(keys, sizeof(ASTNode*) * (count + 1));
 if (!tmpk) {
@@ -1848,11 +1622,6 @@ vals[count] = v;
 count++;
 
 skip_separators();
-
-
-
-
-
 
 /* end? */
 if (current.type == TOKEN_RIGHT_BRACE)
@@ -1896,5 +1665,3 @@ ASTNode *parse_single_statement(const char *source)
 
     return stmt;
   }
-
-

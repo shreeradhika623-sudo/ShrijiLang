@@ -4,6 +4,7 @@
 #include "state.h"
 #include "value.h"
 
+#include "engine.h"
 /*──────────────────────────────────────────────
  | SHRIJI RUNTIME — ISOLATED EXECUTION BRAIN
  *──────────────────────────────────────────────*/
@@ -24,6 +25,8 @@ typedef struct {
     int error_flag;
     int printed;   /* 🌸 NEW: print control flag */
     int executed;
+
+    OutputMode last_output_mode;
 
 } ShrijiRuntime;
 

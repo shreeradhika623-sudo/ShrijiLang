@@ -73,6 +73,7 @@ TOKEN_NOT,          // !
     TOKEN_RIGHT_BRACE,
     TOKEN_COMMA,
     TOKEN_COLON,
+    TOKEN_SEMICOLON,
     TOKEN_NEWLINE,
 
     /* Special */

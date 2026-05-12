@@ -3,7 +3,7 @@
 /* ===== GLOBAL CONFIG ===== */
 
 /* 🌸 DEV MODE */
-int DEV_MODE = 1;  // 0 = USER | 1 = DEV
+int DEV_MODE = 0;  // 0 = USER | 1 = DEV
 
 /* 🌸 LANGUAGE MODE */
 int CURRENT_MODE = MODE_INDIA;

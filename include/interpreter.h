@@ -38,6 +38,6 @@ Value eval(ASTNode *node, Env *env, ShrijiRuntime *rt);
 // run_program now receives runtime pointer
 //
 Value run_program(ASTNode *program, Env *env, ShrijiRuntime *rt);
-
+Value shriji_execute_program(const char *source, Env *env, ShrijiRuntime *rt);
 
 #endif /* INTERPRETER_H */

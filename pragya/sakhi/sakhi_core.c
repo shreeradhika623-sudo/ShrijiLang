@@ -8,15 +8,18 @@ L3Response sakhi_speak(const L3Request *request,
 
     L3Response res;
 
+    // Input validation
     if (!request || !request->raw_input)
     {
-        res.text = "Input samajh nahi aaya.";
+        res.text = "Invalid input";
         res.success = 0;
         return res;
     }
 
-    printf("[PRAGYA] Main sun rahi hoon. Thoda clear likhoge to aur achha ho jayega 🙂\n");
+    // Minimal clean log (optional, can remove later)
+    printf("[PRAGYA] Processing input...\n");
 
+    // Pass-through response
     res.text = request->raw_input;
     res.success = 1;
 

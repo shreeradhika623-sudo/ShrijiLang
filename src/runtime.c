@@ -1,4 +1,7 @@
 #include "../include/runtime.h"
+
+#include "../include/engine.h"
+
 #include "../include/state.h"
 #include "../include/value.h"
 
@@ -11,6 +14,8 @@ ShrijiRuntime *current_runtime = NULL;
 void runtime_init(ShrijiRuntime *rt)
 {
     if (!rt) return;
+
+    current_runtime = rt;
 
     state_init(&rt->state);
 
@@ -25,8 +30,11 @@ void runtime_init(ShrijiRuntime *rt)
 
     rt->error_flag = 0;
 
-    rt->printed = 0;   /* 🌸 NEW */
+    rt->printed = 0;
+
     rt->executed = 0;
+
+    rt->last_output_mode = OUTPUT_NONE;
 }
 
 /*──────────────────────────────────────────────
@@ -49,8 +57,10 @@ void runtime_reset(ShrijiRuntime *rt)
 
     rt->error_flag = 0;
 
-    rt->printed = 0;   /* 🌸 NEW */
+    rt->printed = 0;
 
     rt->executed = 0;
+
+    rt->last_output_mode = OUTPUT_NONE;
 
 }

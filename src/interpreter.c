@@ -3,6 +3,15 @@
 
 #include <stdlib.h>
 
+#include <stdlib.h>
+
+#define MAX_IMPORT_DEPTH 256
+
+static char import_stack[MAX_IMPORT_DEPTH][256];
+static int import_depth = 0;
+
+#include "../include/interpreter.h"
+
 #include "../include/interpreter.h"
 #include "../include/parser.h"
 #include "../include/ast.h"
@@ -20,8 +29,6 @@
 #include "../include/runtime.h"
 
 #include "../include/user_config.h"
-#include "../include/env.h"
-#include "../include/fix_engine.h"
 
 #ifdef SHRIJI_ENABLE_MASTER_TOKENS
 #include "lang/token_master.h"
@@ -145,6 +152,20 @@ static const char *strip_quotes(const char *s)
 
     return s;
 }
+
+static int is_import_active(const char *path)
+{
+    for (int i = 0; i < import_depth; i++)
+    {
+        if (strcmp(import_stack[i], path) == 0)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 /*──────────────────────────────────────────────────────────────
  | MAIN EVALUATOR
  *──────────────────────────────────────────────────────────────*/
@@ -160,31 +181,22 @@ Value shriji_execute_line(const char *line, Env *env, ShrijiRuntime *rt)
     if (DEV_MODE)
         printf("[KRST] Input: %s\n", line);
 
-    /*  USE FIX ENGINE */
-    int was_fixed = 0;
-    int penalty = 0;
 
-char final_input[512];
+ASTNode *node = parse_program(line);
 
-ASTNode *node = language_execute_with_fix(
-    line,
-    final_input,
-    &was_fixed,
-    &penalty
-);
-
-    /*  DO NOT RESET error_reported */
-    if (!node || error_reported)
-    {
-        if (rt) {
-            rt->error_flag = 1;
-        }
-
-        return value_null();
+/* DO NOT RESET error_reported */
+if (!node || error_reported)
+{
+    if (rt) {
+        rt->error_flag = 1;
     }
-
-    /*  STILL NO EXECUTION HERE */
     return value_null();
+}
+
+/* EXECUTE AST */
+Value result = eval(node, env, rt);
+return result;
+
 }
 
 Value eval(ASTNode *node, Env *env, ShrijiRuntime *rt)
@@ -441,6 +453,7 @@ if (!fp) {
         if (!buf) {
             fclose(fp);
             value_free(&pathv);
+           import_depth--;
             return value_null();
         }
 
@@ -886,23 +899,20 @@ cleanup:
 
 case AST_IDENTIFIER: {
 
-    /* 🔒 HARD STOP */
-    if (error_reported || (rt && rt->error_flag))
+    if (rt && rt->error_flag)
         return value_null();
 
     const char *name = node->name;
 
-    /* ===== ENV CHECK ===== */
     if (env_exists(env, name)) {
-        return env_get(env, name);
+        Value v = env_get(env, name);
+        return value_copy(v);
     }
 
-    /* ===== SESSION KEYWORD: last ===== */
     if (strcmp(name, "last") == 0) {
         return smriti_session_get_last();
     }
 
-    /* ===== SMRITI FALLBACK ===== */
     const char *mem = smriti_personal_get(name);
 
     if (mem) {
@@ -912,51 +922,36 @@ case AST_IDENTIFIER: {
         return v;
     }
 
-    /* ===== ERROR ===== */
+    /* 🔥 FINAL ERROR */
     shriji_error(
         E_ASSIGN_01,
-        name,
-        "variable declare nahi hua",
-        "use mavi x = ... pehle likhiye"
+        "runtime",
+        "Variable define nahi hai",
+        name
     );
 
-     if (rt) rt->error_flag = 1;
+    if (rt) rt->error_flag = 1;
+
     return value_null();
 }
 
 case AST_ASSIGNMENT: {
 
-    /* STEP 1: Evaluate RHS */
     Value value = eval(node->value, env, rt);
 
-    /* 🔒 STOP if error */
     if (error_reported || rt->error_flag) {
         value_free(&value);
         return value_null();
     }
 
-    /* STEP 2: Store SAFE COPY */
-    Value stored = value_copy(value);
-    env_update(env, node->name, stored);
+    /* ✅ CORRECT STORE */
+    env_set(env, node->name, value);
 
-    /* STEP 3: Optional smriti */
-    if (value.type == VAL_NUMBER) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "%g", value.number);
-
-        if (node->name[0] != '\0') {
-            /* smriti_personal_set(node->name, buf); */
-        }
-    }
-
-    /* STEP 4: Event + state */
     event_fire(EVENT_ASSIGNMENT, node->name);
     state_on_success(&rt->state);
 
-    /* STEP 5: Return SAFE COPY */
     Value result = value_copy(value);
 
-    /* STEP 6: Free temp */
     value_free(&value);
 
     return result;
@@ -1079,33 +1074,6 @@ case AST_BINARY: {
             "binary",
             "unknown numeric operator",
             NULL
-        );
-        return value_null();
-    }
-
-    /* ================= STRING ================= */
-    if (Lv.type == VAL_STRING) {
-
-        const char *L = Lv.string ? Lv.string : "";
-        const char *R = Rv.string ? Rv.string : "";
-
-        int cmp = strcmp(L, R);
-
-        value_free(&Lv);
-        value_free(&Rv);
-
-        if (op == '=') return value_bool(cmp == 0);
-        if (op == '!') return value_bool(cmp != 0);
-        if (op == '>') return value_bool(cmp > 0);
-        if (op == '<') return value_bool(cmp < 0);
-        if (op == 'G') return value_bool(cmp >= 0);
-        if (op == 'L') return value_bool(cmp <= 0);
-
-        shriji_error(
-            E_RUNTIME_01,
-            "binary",
-            "string ke saath sirf comparison allowed hai",
-            "use: == != < > <= >="
         );
         return value_null();
     }
@@ -1245,17 +1213,24 @@ case AST_BLOCK: {
 }
 
 case AST_PROGRAM: {
+
     Value last = value_null();
 
     for (int i = 0; i < node->stmt_count; i++) {
 
-        Value temp = eval(node->statements[i], env ,rt);
+        Value temp = eval(node->statements[i], env, rt);
 
-        if (i == node->stmt_count - 1) {
-            last = temp;
-        } else {
+        /* runtime safety */
+        if (rt && rt->error_flag) {
             value_free(&temp);
+            return value_null();
         }
+
+        /* ALWAYS update last */
+        value_free(&last);
+        last = value_copy(temp);
+
+        value_free(&temp);
 
         if (rt->break_flag || rt->continue_flag)
             break;
@@ -1264,11 +1239,8 @@ case AST_PROGRAM: {
     if (rt->return_flag)
         return rt->return_value;
 
-    /* 🔒 NO PRINT HERE */
     return last;
 }
-
-
 
 case AST_IMPORT: {
 
@@ -1277,6 +1249,21 @@ case AST_IMPORT: {
 
     /* import "file.sri" */
     const char *path = node->name;
+
+    if (is_import_active(path))
+{
+    shriji_error(
+        E_PARSE_02,
+        "import",
+        "circular import detected",
+        "file already importing"
+    );
+
+    shriji_print_all_errors();
+    shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+
+    return value_null();
+}
 
     if (!path || !*path) {
         shriji_error(
@@ -1288,6 +1275,10 @@ case AST_IMPORT: {
         shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
         return value_null();
     }
+
+    strncpy(import_stack[import_depth], path, 255);
+import_stack[import_depth][255] = '\0';
+import_depth++;
 
     /* read file */
     FILE *fp = fopen(path, "rb");
@@ -1320,7 +1311,7 @@ case AST_IMPORT: {
     buf[nread] = '\0';
     fclose(fp);
 
-    /* 🔥 FULL FILE PARSE */
+    /*  FULL FILE PARSE */
     ASTNode *prog = parse_program(buf);
     free(buf);
 
@@ -1334,6 +1325,7 @@ case AST_IMPORT: {
 
         shriji_print_all_errors();
         shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
+        import_depth--;
         return value_null();
     }
 
@@ -1346,6 +1338,7 @@ case AST_IMPORT: {
     /*  BACK TO NORMAL MODE */
     shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
 
+    import_depth--;
     return result;
 }
 
@@ -1377,9 +1370,14 @@ if (cmd == CMD_BOLO)
         return value_null();
     }
 
-    smriti_session_set_last(v);
+if (rt) {
+    rt->last_output_mode = OUTPUT_EXPLICIT;
+}
 
-    return v;   // 🔥 RETURN VALUE, DO NOT PRINT
+smriti_session_set_last(v);
+
+
+    return v;   //  RETURN VALUE, DO NOT PRINT
 }
 
 /* AI MODULES → ai_router (STEP-13 REAL OUTPUT) */
@@ -1421,15 +1419,3 @@ default:
 }
 }
 
-/*──────────────────────────────────────────────────────────────
- | PROGRAM RUNNER
- *──────────────────────────────────────────────────────────────*/
-Value run_program(ASTNode *program, Env *env, ShrijiRuntime *rt)
-{
-    if (!program || program->type != AST_PROGRAM)
-        return value_null();
-
-    runtime_reset(rt);
-    event_bind_runtime(rt);
-    return eval(program, env, rt);
-}

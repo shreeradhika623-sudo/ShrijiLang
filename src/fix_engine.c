@@ -2,203 +2,179 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "../include/parser.h"
 #include "../include/error.h"
 #include "../include/fix_engine.h"
-#include "../include/fix_rules.h"
-
-#define MAX_WORKING_BUFFER 512
-
-
+#include "../include/runtime.h"
+#include "../include/value.h"
+#include "../include/interpreter.h"
+#include "../include/ast.h"
 /*──────────────────────────────────────────────
    PARSE ONLY (STRICT MODE)
 ──────────────────────────────────────────────*/
 
-ASTNode *parse_once(const char *input)
+static ASTNode *parse_once(const char *input)
 {
+    if (!input)
+        return NULL;
+
     error_reported = 0;
 
-    /* silent mode (no duplicate print) */
+    /* silent mode */
     shriji_set_error_mode(ERROR_MODE_COLLECT);
 
     ASTNode *node = parse_program(input);
 
-    /* restore normal mode */
+    /* restore mode */
     shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
 
     return node;
 }
 
+/*──────────────────────────────────────────────
+   ENGINE RESULT INIT
+──────────────────────────────────────────────*/
 
 /*──────────────────────────────────────────────
-   MAIN EXECUTION (SAFE VERSION)
+   ENGINE RESULT FREE
 ──────────────────────────────────────────────*/
-ASTNode *language_execute_with_fix(
-    const char *input,
-    char *final_output,
-    int *was_fixed,
-    int *penalty_out
-)
 
+void engine_result_free(EngineResult *res)
 {
+    if (!res) return;
+
+    if (res->result.type != VAL_NULL)
+        value_free(&res->result);
+
+    res->result = value_null();
+}
+
+/*──────────────────────────────────────────────
+   MAIN EXECUTION ENGINE
+──────────────────────────────────────────────*/
+
+EngineResult shriji_engine_execute(const char *input, Env *env)
+{
+    EngineResult res;
+    engine_result_init(&res);
+
+    /* 🔒 RESET GLOBAL ERROR STATE */
+    error_reported = 0;
+
     if (!input)
-        return NULL;
-
-    if (was_fixed)
-        *was_fixed = 0;
-
-    if (penalty_out)
-        *penalty_out = 0;
-
-    error_reported = 0;
-    shriji_set_error_mode(ERROR_MODE_IMMEDIATE);
-
-
-ASTNode *root = parse_once(input);
-
-/* 🔻 TRY LOOP (max 2 attempts) */
-int attempts = 0;
-char working[MAX_WORKING_BUFFER];
-
-strncpy(working, input, sizeof(working) - 1);
-working[sizeof(working) - 1] = '\0';
-
-while ((!root || error_reported) && attempts < 2)
-{
-    char fixed[MAX_WORKING_BUFFER];
-    memset(fixed, 0, sizeof(fixed));
-
-    FixType type = fix_apply(working, fixed);
-
-    if (type != FIX_SAFE)
-        break;
-
-    if (was_fixed)
-        *was_fixed = 1;
-
-    if (penalty_out)
-        *penalty_out += 3;
-
-    error_reported = 0;
-
-    strncpy(working, fixed, sizeof(working));
-
-    root = parse_once(working);
-
-    attempts++;
-}
-
-/* FINAL CHECK */
-if (!root || error_reported)
-    return NULL;
-
-if (was_fixed && final_output)
-{
-    strncpy(final_output, working, MAX_WORKING_BUFFER);
-}
-
-return root;
-
-if (final_output)
-{
-    strncpy(final_output, working, MAX_WORKING_BUFFER - 1);
-    final_output[MAX_WORKING_BUFFER - 1] = '\0';
-}
-
-}
-
-
-/*──────────────────────────────────────────────
-   HELPER: invalid token
-──────────────────────────────────────────────*/
-
-static int has_invalid_char(const char *input)
-{
-    for (int i = 0; input[i]; i++)
     {
-        char c = input[i];
-
-        if (isdigit(c) || strchr("+-*/(). ", c))
-            continue;
-
-        return 1;
-    }
-    return 0;
-}
-
-
-/*──────────────────────────────────────────────
-   HELPER: operator chain length
-──────────────────────────────────────────────*/
-
-static int operator_chain_len(const char *input, int pos)
-{
-    int len = 1;
-
-    while (input[pos + len] != '\0' &&
-           strchr("+-*/", input[pos + len]))
-    {
-        len++;
+        res.status = ENGINE_PARSE_ERROR;
+        return res;
     }
 
-    return len;
-}
+    /* ================= PARSE ================= */
 
+    ASTNode *ast = parse_once(input);
 
-/*──────────────────────────────────────────────
-   MAIN FIX ENGINE (STRICT MODE)
-──────────────────────────────────────────────*/
+      res.ast = ast;
 
-FixType fix_apply(const char *input, char *output)
-{
-    if (!input || !*input)
-        return FIX_NONE;
-
-    if (has_invalid_char(input))
-        return FIX_REJECT;
-
-    int i, j = 0;
-    int changed = 0;
-
-    for (i = 0; input[i]; i++)
+    if (!ast || error_reported)
     {
-        /* implicit multiplication */
-        if (isdigit(input[i]) && input[i+1] == '(')
-        {
-            output[j++] = input[i];
-            output[j++] = '*';
-            changed = 1;
-            continue;
-        }
-
-        if (input[i] == ')' && isdigit(input[i+1]))
-        {
-            output[j++] = input[i];
-            output[j++] = '*';
-            changed = 1;
-            continue;
-        }
-
-        /* STRICT: operator chain NOT allowed */
-        if (strchr("+-*/", input[i]))
-        {
-            int len = operator_chain_len(input, i);
-
-            if (len >= 2)
-            {
-                return FIX_DOUBTFUL;
-            }
-        }
-
-        output[j++] = input[i];
+        res.status = ENGINE_PARSE_ERROR;
+        return res;
     }
 
-    output[j] = '\0';
+    /* ================= RUNTIME ================= */
 
-    if (changed)
-        return FIX_SAFE;
+    ShrijiRuntime runtime;
+    runtime_init(&runtime);
 
-    return FIX_NONE;
+    Value result = eval(ast, env, &runtime);
+
+    if (runtime.error_flag || error_reported)
+    {
+        res.status = ENGINE_RUNTIME_ERROR;
+
+        value_free(&result);
+        ast_free(ast);
+
+        return res;
+    }
+
+    /* ================= SUCCESS ================= */
+
+    res.result = value_copy(result);
+
+if (
+    ast &&
+    ast->type == AST_PROGRAM &&
+    ast->stmt_count > 0
+   )
+   {
+    ASTNode *expr = ast->statements[0];
+
+    if (expr && expr->type == AST_COMMAND)
+    {
+    expr = expr->value;
+    }
+
+if (expr && expr->type == AST_BINARY)
+{
+    char op = expr->op[0];
+
+    ASTNode *L = expr->left;
+    ASTNode *R = expr->right;
+
+    const char *label = "Expression executed successfully";
+
+    if (op == '+')
+        label = "Addition";
+
+    else if (op == '-')
+        label = "Subtraction";
+
+    else if (op == '*')
+        label = "Multiplication";
+
+    else if (op == '/')
+        label = "Division";
+
+    if (
+        L &&
+        R &&
+        L->type == AST_NUMBER &&
+        R->type == AST_NUMBER
+    )
+    {
+
+    if (result.type == VAL_BOOL)
+{
+    snprintf(
+        res.explain_text,
+        sizeof(res.explain_text),
+        "%g %s %g = %s",
+        L->number_value,
+        expr->op,
+        R->number_value,
+        result.boolean ? "true" : "false"
+    );
+}
+else
+{
+    snprintf(
+        res.explain_text,
+        sizeof(res.explain_text),
+        "%g %s %g = %g",
+        L->number_value,
+        expr->op,
+        R->number_value,
+        result.number
+    );
+   }
+ }
+}
+}
+value_free(&result);
+
+ast_free(ast);
+
+res.status = ENGINE_OK;
+
+return res;
 }

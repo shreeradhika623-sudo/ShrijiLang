@@ -73,4 +73,44 @@ typedef struct {
 
 } KRSTDecision;
 
+/* ==============================
+   KRST RESPONSE TYPE
+============================== */
+
+typedef enum {
+    KRST_RESPONSE_NORMAL = 0,
+    KRST_RESPONSE_ERROR,
+    KRST_RESPONSE_WARNING,
+    KRST_RESPONSE_AUTO_FIX,
+    KRST_RESPONSE_CRITICAL
+} KRSTResponseType;
+
+/* ==============================
+   KRST RESPONSE STRUCT
+============================== */
+
+typedef struct {
+
+    KRSTResponseType type;
+
+    char message[256];
+    char details[512];
+    char cause[256];
+
+    char input[512];
+    int pointer_col;
+
+    char hint[256];
+
+    char result_text[256];
+
+    char explain_text[2048];
+
+    char original_input[512];
+    char corrected_input[512];
+
+    int repeat_count;
+
+} KRSTResponse;
+
 #endif

@@ -3,22 +3,15 @@
 
 #include "../../include/error.h"
 
-typedef struct {
+/* ==============================
+   GYAAN DATA ACCESS (CLEAN API)
+   ============================== */
 
-    ShrijiErrorCode error;
+/* Core explanation */
+const char* gyaan_get(const ShrijiErrorInfo *err);
 
-    const char *module;
-    const char *file;
-    const char *function;
-
-    const char *rule;
-    const char *explain;
-    const char *hint;
-
-} GyaanEntry;
-
-const GyaanEntry* gyaan_lookup(ShrijiErrorCode code);
-
-void gyaan_print(const ShrijiErrorInfo *err);
+/* Optional layers */
+const char* gyaan_get_hint(const ShrijiErrorInfo *err);
+const char* gyaan_get_rule(const ShrijiErrorInfo *err);
 
 #endif

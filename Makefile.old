@@ -1,5 +1,5 @@
 # ============================================================
-# SHRIJILANG — INCREMENTAL BUILD SYSTEM
+# SHRIJILANG — UNIFIED BUILD SYSTEM (KRST + PRAGYA)
 # ============================================================
 
 CC = gcc
@@ -11,10 +11,8 @@ CFLAGS = -Wall -Wextra -std=c11 -O2 \
 	-Ipragya \
 	-Ikrst
 
-OUT = shrijilang
-
 # ============================================================
-# SOURCE FILES
+# CORE SOURCE FILES
 # ============================================================
 
 SRC = \
@@ -35,7 +33,7 @@ SRC = \
 	src/ai_intent.c \
 	src/atma_lekha.c \
 	src/smriti.c \
-	src/smriti_session.c \
+        src/smriti_session.c \
 	src/smriti_personal.c \
 	src/main.c \
 	env/env.c \
@@ -48,57 +46,43 @@ SRC = \
 	krst/krst_core.c \
 	krst/krst_router.c \
 	krst/niyu_engine.c \
-	krst/krst_print.c \
-    krst/krst_json.c \
 	src/fix_engine.c \
 	src/fix_rules.c \
 	src/fix_interactive.c \
 	src/typo_engine.c \
 	src/error_intelligence.c \
 	src/decision_engine.c \
-	src/user_config.c \
-	src/nirman.c \
-	src/normalize_engine.c \
-	src/nirman_flow_engine.c \
-	src/value_print.c
-
+src/user_config.c \
+src/nirman.c \
+src/normalize_engine.c \
+src/nirman_flow_engine.c \
+src/value_print.c \
 # ============================================================
-# OBJECT FILES
-# ============================================================
-
-OBJ = $(SRC:.c=.o)
-
-# ============================================================
-# FINAL BUILD
+# OUTPUT
 # ============================================================
 
-$(OUT): $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) -o $(OUT) -lreadline
+OUT = shrijilang
 
 # ============================================================
-# OBJECT BUILD RULE
+# BUILD RULES
 # ============================================================
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# ============================================================
-# CLEAN
-# ============================================================
+$(OUT): $(SRC)
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT) -lreadline
 
 clean:
 	rm -f $(OUT)
-	find . -name "*.o" -delete
-
-# ============================================================
-# RUN
-# ============================================================
+	rm -f *.o
+	rm -f src/*.o
+	rm -f env/*.o
+	rm -f src/lang/grammar/*.o
+	rm -f pragya/router/*.o
+	rm -f pragya/niyu/*.o
+	rm -f pragya/sakhi/*.o
+	rm -f pragya/mira/*.o
+	rm -f krst/*.o
 
 run: $(OUT)
 	./$(OUT)
-
-# ============================================================
-# REBUILD
-# ============================================================
 
 rebuild: clean $(OUT)

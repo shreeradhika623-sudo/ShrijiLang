@@ -7,6 +7,8 @@
 #include "../include/interpreter.h"
 #include "../include/error.h"
 #include "../include/fix_engine.h"
+#include "../include/fix_rules.h"
+
 #include "../include/nirman.h"
 #include "../include/parser.h"
 #include "../include/value.h"
@@ -23,6 +25,10 @@
 
 #include "../include/global.h"
 #include "../include/user_config.h"
+
+#include "../gyaan/core/gyaan_engine.h"
+#include "../include/krst_print.h"
+#include "../include/krst_json.h"
 
 extern Env *GLOBAL_ENV;
 
@@ -93,65 +99,36 @@ static int update_error_memory(int code)
 }
 
 /*──────────────────────────────────────────────
-   COMMON ERROR PRINT (PARSE + RUNTIME)
+   KRST RESPONSE DECISION
 ──────────────────────────────────────────────*/
-static void print_shriji_error(
-    PragyaAvastha *avastha,
-    const ShrijiErrorInfo *err
+static KRSTResponseType krst_decide_response_type(
+    int repeat,
+    const FixRule *rule
 )
 {
-    printf("\n");
-
-    /* ===== SHRIJI TONE ===== */
-    if (avastha->risk >= 76)
+    /* CRITICAL */
+    if (repeat >= 10)
     {
-        printf("🌺 Thoda rukte hain...\n");
-        printf("yahan dhyaan dene ki zarurat hai\n");
-        printf("chalo isko sahi tarah se samajhte hain\n\n");
-    }
-    else if (avastha->risk >= 30)
-    {
-        printf("🌼 Lagta hai yahan ek pattern repeat ho raha hai\n");
-        printf("chalo isko dhyaan se samajhte hain\n\n");
-    }
-    else
-    {
-        printf("🌸 Thoda sa issue aaya hai, dekhte hain saath mein\n\n");
+        return KRST_RESPONSE_CRITICAL;
     }
 
-    /* ===== MAIN ERROR ===== */
-    printf("❌ %s\n",
-        err->message ? err->message : "Kuch unexpected hua hai");
-
-    if (err->hint && strlen(err->hint) > 2)
-        printf("👉 %s\n", err->hint);
-
-    if (err->has_location)
-        printf("(line %d, col %d)\n", err->line, err->col);
-
-    /* ===== HUMAN EXPLANATION ===== */
-    if (err->has_location && avastha->raw_text)
+    /* WARNING */
+    if (repeat >= 7)
     {
-        int pos = err->col > 0 ? err->col - 1 : 0;
-        int len = strlen(avastha->raw_text);
+        return KRST_RESPONSE_WARNING;
+    }
 
-        if (pos >= 0 && pos < len)
+    /* AUTO FIX */
+    if (repeat >= 3)
+    {
+        if (rule != NULL)
         {
-            char wrong_char = avastha->raw_text[pos];
-
-            if (isprint(wrong_char))
-            {
-                if (isalpha(wrong_char))
-                    printf("💡 '%c' yahan valid nahi lag raha\n\n", wrong_char);
-                else if (isdigit(wrong_char))
-                    printf("💡 yahan number ke baad kuch missing lag raha hai\n\n");
-                else if (strchr("+-*/", wrong_char))
-                    printf("💡 operator ka use galat ho gaya hai\n\n");
-            }
+            return KRST_RESPONSE_AUTO_FIX;
         }
     }
 
-    printf("\n");
+    /* DEFAULT */
+    return KRST_RESPONSE_ERROR;
 }
 
 /*──────────────────────────────────────────────
@@ -160,19 +137,112 @@ static void print_shriji_error(
 static void handle_error(
     PragyaAvastha *avastha,
     const ShrijiErrorInfo *err,
-    Value *result   /* NULL for parse error */
+    KRSTResponseType response_type
 )
 {
-    print_shriji_error(avastha, err);
 
-    shriji_error_intelligence(avastha, err, NULL);
+   KRSTResponse response;
+memset(&response, 0, sizeof(response));
 
-    avastha->stop_execution = 1;
+  /* MESSAGE */
+snprintf(
+    response.message,
+    sizeof(response.message),
+    "%s",
+    (strlen(err->message) > 0)
+        ? err->message
+        : "Kuch unexpected hua hai"
+);
 
-    if (result != NULL)
-        value_free(result);
+
+/* INPUT */
+if (err->has_location && avastha->raw_text)
+{
+    snprintf(
+        response.input,
+        sizeof(response.input),
+        "%s",
+        avastha->raw_text
+    );
+
+    response.pointer_col = err->col;
 }
 
+/* HINT */
+if (strlen(err->hint) > 0)
+{
+    snprintf(
+        response.hint,
+        sizeof(response.hint),
+        "%s",
+        err->hint
+    );
+}
+
+
+
+   response.type = response_type;
+
+    /* 1. Base Error (always) */
+
+
+/*  CORE INTELLIGENCE SUGGESTION */
+
+if (strcmp(err->expected, "value") == 0)
+{
+    if (strcmp(err->received, "+") == 0 ||
+        strcmp(err->received, "-") == 0 ||
+        strcmp(err->received, "*") == 0 ||
+        strcmp(err->received, "/") == 0)
+    {
+        snprintf(
+    response.details,
+    sizeof(response.details),
+    "extra operator remove karo"
+  );
+    }
+}
+
+    /* 2. GYAAN fetch */
+    const char *gyaan = gyaan_get(err);
+
+     /* EXPLAIN LEVEL */
+      if (avastha->teach_level >= KRST_TEACH_EXPLAIN)
+   {
+      if (gyaan &&
+         strcmp(gyaan, err->message) != 0)
+    {
+      snprintf(
+    response.details,
+    sizeof(response.details),
+    "%s",
+    gyaan
+  );
+    }
+    }
+
+    /* DEEP LEVEL */
+    if (avastha->teach_level >= KRST_TEACH_DEEP)
+    {
+        shriji_error_intelligence(avastha, err, NULL);
+    }
+
+    /* TRAIN LEVEL (future expandable) */
+    if (avastha->teach_level >= KRST_TEACH_TRAIN)
+    {
+       snprintf(
+    response.details,
+    sizeof(response.details),
+    "Practice karo: similar expression likho aur test karo"
+  );
+    }
+
+
+   krst_print_response(&response);
+    /* 4. Stop execution */
+    avastha->stop_execution = 1;
+
+}
 
 /* ================= THRESHOLD ================= */
 static void apply_thresholds(KRSTDecision *d)
@@ -204,10 +274,16 @@ static void apply_thresholds(KRSTDecision *d)
 
 /* ================= MAIN ================= */
 
-int krst_process(PragyaAvastha *avastha)
+EngineResult krst_process(PragyaAvastha *avastha)
 {
+    EngineResult res;
+    engine_result_init(&res);
+
     if (!avastha || !avastha->raw_text)
-        return 1;
+    {
+        res.status = ENGINE_PARSE_ERROR;
+        return res;
+    }
 
     const char *input = avastha->raw_text;
 
@@ -216,21 +292,24 @@ int krst_process(PragyaAvastha *avastha)
         nirman_start();
         printf("Nirman mode activated\n");
         printf("Welcome to Shriji World\n");
-        return 0;
+        res.status = ENGINE_OK;
+        return res;
     }
 
     /* NIRMAN STOP */
     if (strcmp(input, "exit nirman") == 0) {
         nirman_stop();
         printf("Nirman mode deactivated\n");
-        return 0;
+        res.status = ENGINE_OK;
+        return res;
     }
 
     /* NIRMAN MODE */
     if (nirman_is_active()) {
         int intent = nirman_detect_intent(input);
         printf("SHRIJI (intent=%d)\n", intent);
-        return 0;
+        res.status = ENGINE_OK;
+        return res;
     }
 
     if (DEV_MODE)
@@ -238,281 +317,263 @@ int krst_process(PragyaAvastha *avastha)
 
     error_reported = 0;
     avastha->stop_execution = 0;
+    avastha->allow_auto_fix = 0;
 
-    avastha->confidence = session_confidence;
-    avastha->risk = session_risk;
+/* 🔻 RUN ENGINE */
+EngineResult engine_res =
+    shriji_engine_execute(input, GLOBAL_ENV);
 
-    /* ================= PARSE ================= */
+/* 🔻 ERROR HANDLE */
+const ShrijiErrorInfo *err_ptr = NULL;
 
-    int was_fixed = 0;
-    int fix_penalty = 0;
+if (engine_res.status != ENGINE_OK)
+{
+    err_ptr = shriji_last_error();
+}
 
-char final_input[512];
+if (err_ptr)
+{
 
-ASTNode *root = language_execute_with_fix(
-    input,
-    final_input,
-    &was_fixed,
-    &fix_penalty
-);
-    /* ================= PARSE ERROR ================= */
+    ShrijiErrorInfo err_safe = *err_ptr;
+    error_reported = 0;
 
-    if (!root || error_reported)
-    {
+int repeat = update_error_memory(err_safe.code);
 
-        avastha->ast = NULL;
-        avastha->stop_execution = 1;
-        success_streak = 0;
+/* FIX RULE LOOKUP */
+FixRule *rule =
+    shriji_get_rule_for_error(err_safe.code);
 
-        const ShrijiErrorInfo *err_ptr = shriji_last_error();
-        if (!err_ptr) return 0;
+/* RESPONSE TYPE DECISION */
+KRSTResponseType response_type =
+    krst_decide_response_type(repeat, rule);
 
-    int repeat_count = update_error_memory((int)err_ptr->code);
-
-  /* 🔻 adaptive penalty */
-   int penalty = 10 + (repeat_count - 1) * 5;
-      if (penalty > 25) penalty = 25;
-
-         session_confidence -= penalty;
-         session_risk += penalty;
-
-      if (DEV_MODE)
-  {
-        printf("[KRST] Error repeat count: %d\n", repeat_count);
-    }
-
-        ShrijiErrorInfo err_safe = *err_ptr;
-
-        DecisionType d_type = shriji_take_decision(
-            session_confidence,
-            session_risk,
-            err_safe.code
-        );
-
-        char fixed[256];
-        FixType ftype = fix_apply(input, fixed);
-
-        if (ftype == FIX_SAFE && d_type == DECISION_AUTO_FIX)
-        {
-          printf("Input: %s\n", input);
-          printf("Correction: %s\n", fixed);
-
-            avastha->has_correction = 1;
-
-            snprintf(avastha->corrected_text,
-                     sizeof(avastha->corrected_text),
-                     "%s", fixed);
-                error_reported = 0;
-            return 0;
-        }
-               handle_error(avastha, &err_safe, NULL);
-   /* 🔻 HARD BOUNDS */
+/* 🔻 ADD THIS BLOCK BELOW */
+session_confidence -= 10;
 
 if (session_confidence < 0)
-{
     session_confidence = 0;
-}
 
-if (session_confidence > 100)
+switch (response_type)
 {
-    session_confidence = 100;
+    case KRST_RESPONSE_ERROR:
+
+        avastha->teach_level = KRST_TEACH_EXPLAIN;
+        avastha->risk = 20;
+        avastha->allow_auto_fix = 0;
+
+        break;
+
+    case KRST_RESPONSE_WARNING:
+
+        avastha->teach_level = KRST_TEACH_DEEP;
+        avastha->risk = 50;
+        avastha->allow_auto_fix = 0;
+
+        break;
+
+    case KRST_RESPONSE_AUTO_FIX:
+
+        avastha->teach_level = KRST_TEACH_DEEP;
+        avastha->risk = 50;
+        avastha->allow_auto_fix = 1;
+
+        break;
+
+    case KRST_RESPONSE_CRITICAL:
+
+        avastha->teach_level = KRST_TEACH_TRAIN;
+        avastha->risk = 80;
+        avastha->allow_auto_fix = 0;
+
+        break;
+
+    default:
+        break;
 }
 
-if (session_risk < 4)
+    /* CENTRAL ERROR HANDLER */
+    handle_error(
+     avastha,
+     &err_safe,
+     response_type
+   );
+
+    /*  FIX ENGINE RE-EXECUTION */
+if (avastha->has_correction && avastha->allow_auto_fix)
 {
-    session_risk = 4;
-}
-
-if (session_risk > 100)
-{
-    session_risk = 100;
-}
-
-      /* 🔻 ADD HERE */
-      KRSTDecision decision = {0};
-      decision.confidence_score = session_confidence;
-
-      apply_thresholds(&decision);
-
-         if (DEV_MODE)
-  {
-    printf("[KRST] Confidence: %d | Risk: %d | Teach: %s | Tone: %s | Esc: %d\n",
-           session_confidence,
-           session_risk,
-           teach_label(decision.teaching_level),
-           tone_label(decision.tone),
-           decision.escalate);
-   }
-
-         return 0;
+    if (DEV_MODE)
+    {
+        printf("[KRST] Applying auto-correction...\n");
     }
 
-    /* ================= SUCCESS START ================= */
+    EngineResult final_res = shriji_engine_execute(
+        avastha->corrected_text,
+        GLOBAL_ENV
+    );
 
-    avastha->ast = root;
-
-    ShrijiRuntime runtime;
-    runtime_init(&runtime);
-
-    Value result = eval(root, GLOBAL_ENV, &runtime);
-
-/* ================= RUNTIME ERROR (NEW) ================= */
-if (runtime.error_flag || error_reported)
-{
-    success_streak = 0;
-
-    const ShrijiErrorInfo *err_ptr = shriji_last_error();
-
-    int repeat_count = 1;
-
-       if (err_ptr)
- {
-       repeat_count = update_error_memory((int)err_ptr->code);
-  }
-
-    /* 🔻 adaptive penalty */
-    int penalty = 10 + (repeat_count - 1) * 5;
-    if (penalty > 25) penalty = 25;
-
-    session_confidence -= penalty;
-    session_risk += penalty;
-
-      if (DEV_MODE && err_ptr)
-{
-      printf("[KRST] Error repeat count: %d\n", repeat_count);
- }
-
-    if (err_ptr)
+    /*  APPLY FIXED RESULT */
+    if (final_res.status == ENGINE_OK)
     {
-        ShrijiErrorInfo err_safe = *err_ptr;
-        error_reported = 0;
+        value_free(&engine_res.result);
+        engine_res.result = value_copy(final_res.result);
 
-        handle_error(avastha, &err_safe, &result);
+        value_free(&final_res.result);
+        engine_res.status = ENGINE_OK;
+        avastha->stop_execution = 0;  // allow normal flow
     }
     else
     {
         avastha->stop_execution = 1;
-        value_free(&result);
     }
-
-   /* 🔻 HARD BOUNDS */
-
-if (session_confidence < 0)
-{
-    session_confidence = 0;
 }
 
-if (session_confidence > 100)
-{
-    session_confidence = 100;
 }
-
-if (session_risk < 4)
+/* 🟢 SUCCESS TRACKING */
+if (engine_res.status == ENGINE_OK)
 {
-    session_risk = 4;
-}
+    success_streak++;
 
-if (session_risk > 100)
-{
-    session_risk = 100;
-}
-
-    /* 🔻 KRST PRINT */
-    KRSTDecision decision = {0};
-    decision.confidence_score = session_confidence;
-
-    apply_thresholds(&decision);
-
-    if (DEV_MODE)
+    /* 🔻 RESET ONLY AFTER STRONG PROOF */
+    if (success_streak >= 5)
     {
-        printf("[KRST] Confidence: %d | Risk: %d | Teach: %s | Tone: %s | Esc: %d\n",
-               session_confidence,
-               session_risk,
-               teach_label(decision.teaching_level),
-               tone_label(decision.tone),
-               decision.escalate);
+        error_memory_size = 0;
+        session_confidence = 100;
+
+        avastha->risk = 5;
+        avastha->teach_level = KRST_TEACH_SILENT;
     }
-
-    return 0;
 }
-
-/* ================= SUCCESS ================= */
-
-   success_streak++;
-
-  /* RESET ERROR MEMORY */
- if (success_streak >= 3)
+else
 {
-    error_memory_size = 0;
+    /* 🔻 DON'T HARD RESET */
+    if (success_streak > 0)
+        success_streak--;
 }
 
- int recovery = 3 + (success_streak * 2);
-
-   if (recovery > 15)
- {
-     recovery = 15;
-  }
-
-   if (session_confidence > 80)
- {
-     recovery = recovery / 2;
-  }
-
-   if (session_risk > 60)
- {
-     recovery = recovery / 2;
-  }
-
-    session_confidence += recovery;
-    session_risk -= recovery;
-
-if (was_fixed)
+if (engine_res.status == ENGINE_OK)
 {
-    printf("Input: %s\n", input);
-    printf("Correction: %s\n", final_input);
-
-   session_confidence -= fix_penalty;
-   session_risk += fix_penalty;
-}
-
-     if (result.type == VAL_NUMBER)
- {
-     printf("%g\n", result.number);
-   }
-     else if (result.type == VAL_STRING && result.string)
- {
-      printf("%s\n", result.string);
-    }
-
-       value_free(&result);
-
-    if (session_confidence < 0) session_confidence = 0;
-    if (session_confidence > 100) session_confidence = 100;
-
-    if (session_risk < 4) session_risk = 4;
-    if (session_risk > 100) session_risk = 100;
-
-    KRSTDecision decision = {0};
-    decision.confidence_score = session_confidence;
-
-    apply_thresholds(&decision);
-
-    if (DEV_MODE)
+    /* AUTO FIX */
+    if (avastha->allow_auto_fix)
     {
-        printf("[KRST] Confidence: %d | Risk: %d | Teach: %s | Tone: %s | Esc: %d\n",
-               session_confidence,
-               session_risk,
-               teach_label(decision.teaching_level),
-               tone_label(decision.tone),
-               decision.escalate);
+          KRSTResponse response;
+    memset(&response, 0, sizeof(response));
+
+      response.type = KRST_RESPONSE_AUTO_FIX;
+
+        snprintf(
+        response.original_input,
+        sizeof(response.original_input),
+        "%s",
+        avastha->raw_text
+    );
+
+        snprintf(
+        response.corrected_input,
+        sizeof(response.corrected_input),
+        "%s",
+        avastha->corrected_text
+    );
+
+         if (engine_res.result.type == VAL_NUMBER)
+    {
+        snprintf(
+            response.result_text,
+            sizeof(response.result_text),
+            "%g",
+            engine_res.result.number
+        );
+    }
+    else if (
+        engine_res.result.type == VAL_STRING &&
+        engine_res.result.string
+    )
+    {
+        snprintf(
+            response.result_text,
+            sizeof(response.result_text),
+            "%s",
+            engine_res.result.string
+        );
     }
 
-    avastha->confidence = session_confidence;
-    avastha->risk = session_risk;
-    avastha->teach_level = decision.teaching_level;
-    avastha->tone = decision.tone;
+    krst_print_response(&response);
 
-    pragya_route(avastha);
+        return engine_res;
+    }
 
-    return 0;
+    /* NORMAL OUTPUT */
+if (engine_res.status == ENGINE_OK &&
+    current_runtime &&
+    current_runtime->last_output_mode != OUTPUT_EXPLICIT)
+{
+    return engine_res;
+}
+
+KRSTResponse response;
+
+memset(&response, 0, sizeof(response));
+
+response.type = KRST_RESPONSE_NORMAL;
+
+
+if (engine_res.result.type == VAL_NUMBER)
+{
+    snprintf(
+        response.result_text,
+        sizeof(response.result_text),
+        "%g",
+        engine_res.result.number
+    );
+}
+else if (
+    engine_res.result.type == VAL_STRING &&
+    engine_res.result.string
+)
+{
+    snprintf(
+        response.result_text,
+        sizeof(response.result_text),
+        "%s",
+        engine_res.result.string
+    );
+}
+else if (engine_res.result.type == VAL_BOOL)
+{
+    snprintf(
+        response.result_text,
+        sizeof(response.result_text),
+        "%s",
+        engine_res.result.boolean ? "true" : "false"
+    );
+}
+else
+{
+    snprintf(
+        response.result_text,
+        sizeof(response.result_text),
+        "null"
+    );
+}
+
+snprintf(
+    response.explain_text,
+    sizeof(response.explain_text),
+    "%s",
+    engine_res.explain_text
+);
+
+krst_print_response(&response);
+
+char json[4096];
+
+krst_response_to_json(
+    &response,
+    json,
+    sizeof(json)
+);
+
+printf("\nJSON:\n%s\n", json);
+
+}
+return engine_res;
 }

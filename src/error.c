@@ -250,6 +250,10 @@ void shriji_error_at_full(
     snprintf(LAST_ERROR.hint, sizeof(LAST_ERROR.hint), "%s", hint ? hint : "");
     snprintf(LAST_ERROR.function, sizeof(LAST_ERROR.function), "%s", function ? function : "");
 
+/*  NEW INTELLIGENCE FIELDS */
+snprintf(LAST_ERROR.expected, sizeof(LAST_ERROR.expected), "%s", "unknown");
+snprintf(LAST_ERROR.received, sizeof(LAST_ERROR.received), "%s", "unknown");
+
     LAST_ERROR.has_location = 1;
     LAST_ERROR.line = tok.line;
     LAST_ERROR.col = tok.col;

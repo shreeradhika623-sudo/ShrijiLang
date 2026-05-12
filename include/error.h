@@ -47,8 +47,8 @@ typedef enum {
     E_RUNTIME_DIV_ZERO,
     E_RUNTIME_TYPE_MISMATCH,
     E_RUNTIME_LOOP_LIMIT,
-    E_RUNTIME_INDEX_ERROR
-
+    E_RUNTIME_INDEX_ERROR,
+    E_RUNTIME_UNDEFINED_VAR,
 } ShrijiErrorCode;
 
 
@@ -61,6 +61,10 @@ typedef struct {
     char message[256];
     char hint[128];
     char function[64];
+
+    /*  NEW */
+    char expected[64];
+    char received[64];
 
     int has_location;
     int line;

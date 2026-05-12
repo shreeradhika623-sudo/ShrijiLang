@@ -1,12 +1,13 @@
 /*=============================================================
-  SHRIJI GYAAN ENGINE — CORE (HINGLISH + CLEAR UX VERSION)
+  SHRIJI GYAAN ENGINE — CLEAN (SILENT DATA LAYER)
 =============================================================*/
 
-#include <stdio.h>
 #include <string.h>
 #include "../../include/error.h"
 
-/* 🌸 GLOBAL PRINT CONTROL */
+/*──────────────────────────────────────────────
+  RULE STRUCTURE
+──────────────────────────────────────────────*/
 
 typedef struct {
     int code;
@@ -21,84 +22,68 @@ typedef struct {
 
 } GyaanRule;
 
+/* external lookup */
 extern const GyaanRule* gyaan_lookup(int code);
+
+/*──────────────────────────────────────────────
+  SAFE STRING
+──────────────────────────────────────────────*/
 
 static const char* safe(const char *s)
 {
-    return (s && *s) ? s : "N/A";
+    return (s && *s) ? s : NULL;
 }
 
-    void gyaan_print(const ShrijiErrorInfo *err)
+/*──────────────────────────────────────────────
+  MAIN GYAAN ACCESS (NO PRINT)
+──────────────────────────────────────────────*/
+
+/*
+    Purpose:
+    - Return explanation text (core learning)
+    - NO printing
+    - KRST will decide how to use this
+*/
+
+const char* gyaan_get(const ShrijiErrorInfo *err)
 {
-    if (!err) return;
+    if (!err) return NULL;
 
     const GyaanRule *r = gyaan_lookup(err->code);
 
-    /* SOFT FUNCTION MATCH */
-    if (r && err->function && r->function) {
-        if (strcmp(err->function, r->function) != 0) {
-            /* allow fallback */
-        }
-    }
-
-
-    /* FALLBACK (NO RULE FOUND) */
+    /* fallback (no rule found) */
     if (!r) {
-        printf("\nSHRIJI INSIGHT\n");
-        printf("──────────────────────────────\n");
-
-        printf("System ko is error ka exact explanation nahi mila\n");
-
-        printf("Samjho   : input ka structure (syntax) sahi format me nahi hai\n");
-
-        printf("Hint     : statement ko proper format me likho\n");
-        printf("Example  : bolo 5 + 2\n");
-
-        if (err->has_location) {
-            printf("\nLocation : line %d, col %d\n", err->line, err->col);
-        }
-
-        printf("──────────────────────────────\n");
-        return;
+        return "Input ka structure sahi nahi hai";
     }
 
-    /* NORMAL RULE PRINT */
-    printf("\nSHRIJI INSIGHT\n");
-    printf("──────────────────────────────\n");
+    /* priority: explain → rule → hint */
+    if (safe(r->explain)) return r->explain;
+    if (safe(r->rule))    return r->rule;
+    if (safe(r->hint))    return r->hint;
 
-    printf("Module   : %s\n", safe(r->module));
-    printf("File     : %s\n", safe(r->file));
-    printf("Function : %s\n\n", safe(r->function));
+    return NULL;
+}
 
-    printf("Rule     : %s\n", safe(r->rule));
-    printf("Samjho   : %s\n", safe(r->explain));
-    printf("Hint     : %s\n", safe(r->hint));
+/*──────────────────────────────────────────────
+  OPTIONAL: ADVANCED ACCESS (FUTURE USE)
+──────────────────────────────────────────────*/
 
-    switch (err->code)
-    {
-        case E_PARSE_MISSING_OPERATOR:
-            printf("\nNote     : yahan values ke beech operator missing tha\n");
-            break;
+const char* gyaan_get_hint(const ShrijiErrorInfo *err)
+{
+    if (!err) return NULL;
 
-        case E_PARSE_DOUBLE_OPERATOR:
-            printf("\nNote     : do operator ek saath aa gaye the\n");
-            break;
+    const GyaanRule *r = gyaan_lookup(err->code);
+    if (!r) return NULL;
 
-        case E_PARSE_OPERATOR_START:
-            printf("\nNote     : expression operator se start nahi hota\n");
-            break;
+    return safe(r->hint);
+}
 
-        case E_PARSE_OPERATOR_END:
-            printf("\nNote     : expression operator par khatam ho gaya\n");
-            break;
+const char* gyaan_get_rule(const ShrijiErrorInfo *err)
+{
+    if (!err) return NULL;
 
-        default:
-            break;
-    }
+    const GyaanRule *r = gyaan_lookup(err->code);
+    if (!r) return NULL;
 
-    if (err->has_location) {
-        printf("\nLocation : line %d, col %d\n", err->line, err->col);
-    }
-
-    printf("──────────────────────────────\n");
+    return safe(r->rule);
 }

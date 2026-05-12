@@ -170,26 +170,20 @@ void shriji_error_intelligence(
         return;
 
     /* 🔒 GLOBAL STOP (avoid duplicate flow) */
-    if (error_reported && avastha->stop_execution)
-        return;
 
+    if (!avastha->raw_text)
+    return;
     const char *text = avastha->raw_text;
 
     /* ===== VALIDATION ===== */
+     if (!is_valid_input(text))
+   {
+       avastha->stop_execution = 1;
+       avastha->has_correction = 0;
 
-    if (!is_valid_input(text) && !error_reported)
-    {
-        avastha->stop_execution = 1;
-        avastha->has_correction = 0;
-
-        int pos = (err && err->col > 0) ? err->col - 1 : 0;
-
-        if (!avastha->stop_execution)
-            print_pointer(text, pos);
-
-        return;
+     // pointer handled by mira layer
+         return;
     }
-
     /* ===== RULE BASED FIX ===== */
 
     FixRule *rule = shriji_get_rule_for_error(err->code);
@@ -201,21 +195,22 @@ void shriji_error_intelligence(
 
         if (rule->apply_fix(buffer, sizeof(buffer), err))
         {
-            if (rule->safety == FIX_SAFE_DETERMINISTIC)
-            {
-                printf("\n[Auto Fix Applied]\n");
-                printf("Reason: deterministic rule\n");
-                printf("Result: %s\n\n", buffer);
 
-                avastha->has_correction = 1;
-                avastha->stop_execution = 1;
 
-                snprintf(avastha->corrected_text,
-                         sizeof(avastha->corrected_text),
-                         "%s", buffer);
+           if (rule->safety == FIX_SAFE_DETERMINISTIC)
+{
 
-                return;
-            }
+    /* ONLY PREPARE FIX — DO NOT APPLY */
+
+                  avastha->has_correction = 1;
+
+                  snprintf(avastha->corrected_text,
+                    sizeof(avastha->corrected_text),
+                    "%s", buffer);
+
+
+                      return;
+          }
 
             printf("\nSuggestion: %s\n", buffer);
             printf("\nEdit (E) / Ignore (I): ");
@@ -247,7 +242,7 @@ void shriji_error_intelligence(
 
     char filtered[256];
 
-    if (filter_operators(text, filtered) && !error_reported)
+    if (filter_operators(text, filtered))
     {
         printf("\nSuggestion: %s\n", filtered);
         printf("\nEdit (E) / Ignore (I): ");
@@ -275,12 +270,11 @@ void shriji_error_intelligence(
     }
 
     /* ===== FALLBACK POINTER ===== */
+/* ===== FALLBACK POINTER ===== */
 
-    int pos = (err && err->col > 0) ? err->col - 1 : 0;
+// pointer handled by mira layer
 
-    if (!avastha->stop_execution)
-        print_pointer(text, pos);
+avastha->stop_execution = 1;
+avastha->has_correction = 0;
 
-    avastha->stop_execution = 1;
-    avastha->has_correction = 0;
 }

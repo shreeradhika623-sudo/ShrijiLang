@@ -41,7 +41,7 @@ int stop_execution;
 
     int teach_level;
     int tone;
-
+    int allow_auto_fix;   /* KRST will decide fix permission */
     /* Runtime result */
     Value runtime_result;
 
